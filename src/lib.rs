@@ -1,8 +1,14 @@
-use std::{default, sync::Arc};
+use std::f32::consts::E;
 use std::rc::Rc;
+use std::{default, sync::Arc};
 use wgpu::wgc::device;
 use winit::{
-    application::ApplicationHandler, dpi::PhysicalPosition, event::*, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::Window
+    application::ApplicationHandler,
+    dpi::PhysicalPosition,
+    event::*,
+    event_loop::{ActiveEventLoop, EventLoop},
+    keyboard::{KeyCode, PhysicalKey},
+    window::Window,
 };
 
 use std::collections::VecDeque;
@@ -83,29 +89,31 @@ impl State {
         // one will result in all the colors coming out darker. If you want to support non
         // sRGB surfaces, you'll need to account for that when drawing to the frame.
 
-        let surface_format = surface_caps.formats.iter()
+        let surface_format = surface_caps
+            .formats
+            .iter()
             .find(|f| f.is_srgb())
             .copied()
             .unwrap_or(surface_caps.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT, 
-                // How SurfaceTexture will be used
-            format: surface_format, 
-                // How SurfaceTexture will be stored on GPU 
-            width: size.width, // >0
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            // How SurfaceTexture will be used
+            format: surface_format,
+            // How SurfaceTexture will be stored on GPU
+            width: size.width,   // >0
             height: size.height, // >0
-            present_mode: surface_caps.present_modes[0], 
-                // How surface is synced to display
-                // VSYNC: => PresentMode::Fifo (Cap display rate to framerate)
+            present_mode: surface_caps.present_modes[0],
+            // How surface is synced to display
+            // VSYNC: => PresentMode::Fifo (Cap display rate to framerate)
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
-                // List of texture formats used when creating texture views
-                // I.e surface is sRGB => texture view created with linear color space
+            // List of texture formats used when creating texture views
+            // I.e surface is sRGB => texture view created with linear color space
             desired_maximum_frame_latency: 2,
         };
 
-        // Loading shaders 
+        // Loading shaders
         // Shader shortcut for this
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         //     label: Some("Shader"),
@@ -115,11 +123,11 @@ impl State {
 
         // Pipeline layout
         let render_pipeline_layout =
-        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
-            push_constant_ranges: &[],
-        });
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
 
         // Main render pipeline
         let _main_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -135,12 +143,17 @@ impl State {
             },
 
             // Fragment sjader
-            fragment: Some(wgpu::FragmentState { // Fragment is technically optional, needed to store color data to surface
+            fragment: Some(wgpu::FragmentState {
+                // Fragment is technically optional, needed to store color data to surface
                 module: &shader,
                 entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState { // Tells Wgpu what color outputs to set up
+                targets: &[Some(wgpu::ColorTargetState {
+                    // Tells Wgpu what color outputs to set up
                     format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE), // Replace old pixel with new pixel
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent::REPLACE,
+                        alpha: wgpu::BlendComponent::REPLACE,
+                    }),
                     write_mask: wgpu::ColorWrites::ALL, // Write to rgba
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -154,14 +167,11 @@ impl State {
                 cull_mode: Some(wgpu::Face::Back), // Triangles are culled if not facing forward
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
+                ..Default::default()
             },
-            depth_stencil: None, 
+            depth_stencil: None,
             multisample: wgpu::MultisampleState {
-                count: 1, // How many samples the pipeline will used (Too much work)
+                count: 1,                         // How many samples the pipeline will used (Too much work)
                 mask: !0, // Mask specifies which samples should be active (All of them)
                 alpha_to_coverage_enabled: false, // Anti aliasing
             },
@@ -169,7 +179,7 @@ impl State {
             cache: None, // Cache shader compliation data (Only useful for android build targets)
         });
 
-        // Main render pipeline
+        // Challenge 3 render pipeline
         let _challenge3_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
@@ -182,14 +192,16 @@ impl State {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
-            // Fragment sjader
-            fragment: Some(wgpu::FragmentState { // Fragment is technically optional, needed to store color data to surface
+            // Fragment shader
+            fragment: Some(wgpu::FragmentState {
+                // Fragment is technically optional, needed to store color data to surface
                 module: &shader,
                 entry_point: Some("fs_challenge3"),
-                targets: &[Some(wgpu::ColorTargetState { // Tells Wgpu what color outputs to set up
+                targets: &[Some(wgpu::ColorTargetState {
+                    // Tells Wgpu what color outputs to set up
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE), // Replace old pixel with new pixel
-                    write_mask: wgpu::ColorWrites::ALL, // Write to rgba
+                    write_mask: wgpu::ColorWrites::ALL,     // Write to rgba
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
@@ -207,16 +219,15 @@ impl State {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None, 
+            depth_stencil: None,
             multisample: wgpu::MultisampleState {
-                count: 1, // How many samples the pipeline will used (Too much work)
+                count: 1,                         // How many samples the pipeline will used (Too much work)
                 mask: !0, // Mask specifies which samples should be active (All of them)
                 alpha_to_coverage_enabled: false, // Anti aliasing
             },
             multiview: None, // How many layers the render attachments will have (For array textures)
             cache: None, // Cache shader compliation data (Only useful for android build targets)
         });
-
 
         let pipeline_deque = VecDeque::from([_main_pipeline, _challenge3_pipeline]);
 
@@ -244,17 +255,27 @@ impl State {
     }
 
     // Handles keyboard events
-    fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
+    fn handle_key(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        code: KeyCode,
+        is_pressed: bool,
+    ) -> anyhow::Result<()> {
         match (code, is_pressed) {
             (KeyCode::Escape, true) => event_loop.exit(),
-            (KeyCode::Space, true) => self.switch_render(),
+            (KeyCode::Space, true) => self.switch_render()?,
             _ => {}
         }
+        Ok(())
     }
 
-    fn switch_render(&mut self){
-        let front_item = self.pipeline_deque.pop_front().unwrap();
+    fn switch_render(&mut self) -> anyhow::Result<()> {
+        let front_item = self
+            .pipeline_deque
+            .pop_front()
+            .ok_or(wgpu::SurfaceError::OutOfMemory)?;
         self.pipeline_deque.push_back(front_item);
+        Ok(())
     }
 
     fn handle_mouse_position(&mut self, position: &mut PhysicalPosition<f64>) {
@@ -272,23 +293,27 @@ impl State {
         if !self.is_surface_configured {
             return Ok(());
         }
-        
+
         // Wait for surface to provide a new surface that will be rendered
         let output = self.surface.get_current_texture()?;
 
         // Creates texture view with default settings
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         // Builds a command buffer to send to the GPU
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
         // Drawing to the screen
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view, // What view to save to
+                view: &view,          // What view to save to
                 resolve_target: None, // Texture that will recieve the resolved output
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -305,7 +330,11 @@ impl State {
             timestamp_writes: None,
         });
 
-        render_pass.set_pipeline(&self.pipeline_deque.front().unwrap()); // Load render pipeline
+        render_pass.set_pipeline(
+            self.pipeline_deque
+                .front()
+                .ok_or(wgpu::SurfaceError::OutOfMemory)?,
+        ); // Load render pipeline
         render_pass.draw(0..3, 0..1); // Create "Something" with 3 vertices and 1 instance
 
         // Render pass mutably borrows encoder
@@ -348,7 +377,7 @@ impl ApplicationHandler<State> for App {
         {
             use wasm_bindgen::JsCast;
             use winit::platform::web::WindowAttributesExtWebSys;
-            
+
             const CANVAS_ID: &str = "canvas";
 
             let window = wgpu::web_sys::window().unwrap_throw();
@@ -363,7 +392,7 @@ impl ApplicationHandler<State> for App {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // If we are not on web we can use pollster to
-            // await the 
+            // await the
             self.state = Some(pollster::block_on(State::new(window)).unwrap());
         }
 
@@ -373,13 +402,15 @@ impl ApplicationHandler<State> for App {
             // proxy to send the results to the event loop
             if let Some(proxy) = self.proxy.take() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    assert!(proxy
-                        .send_event(
-                            State::new(window)
-                                .await
-                                .expect("Unable to create canvas!!!")
-                        )
-                        .is_ok())
+                    assert!(
+                        proxy
+                            .send_event(
+                                State::new(window)
+                                    .await
+                                    .expect("Unable to create canvas!!!")
+                            )
+                            .is_ok()
+                    )
                 });
             }
         }
@@ -425,10 +456,9 @@ impl ApplicationHandler<State> for App {
                     }
                 }
             }
-            WindowEvent::CursorMoved{
-                mut position,
-                ..
-            } => state.handle_mouse_position(&mut position),
+            WindowEvent::CursorMoved { mut position, .. } => {
+                state.handle_mouse_position(&mut position)
+            }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
@@ -437,7 +467,11 @@ impl ApplicationHandler<State> for App {
                         ..
                     },
                 ..
-            } => state.handle_key(event_loop, code, key_state.is_pressed()),
+            } => {
+                if let Err(e) = state.handle_key(event_loop, code, key_state.is_pressed()) {
+                    log::error!("Error key input! {}", e);
+                }
+            }
             _ => {}
         }
     }
