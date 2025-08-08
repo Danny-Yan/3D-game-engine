@@ -1,7 +1,4 @@
-use std::f32::consts::E;
-use std::rc::Rc;
-use std::{default, sync::Arc};
-use wgpu::wgc::device;
+use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalPosition,
