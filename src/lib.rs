@@ -253,8 +253,8 @@ impl State {
     }
 
     fn switch_render(&mut self){
-        todo!();
-        self.pipeline_deque.push_back(self.pipeline_deque.pop_front().unwrap());
+        let front_item = self.pipeline_deque.pop_front().unwrap();
+        self.pipeline_deque.push_back(front_item);
     }
 
     fn handle_mouse_position(&mut self, position: &mut PhysicalPosition<f64>) {
