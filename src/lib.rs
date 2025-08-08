@@ -235,7 +235,7 @@ impl State {
             config,
             is_surface_configured: false,
             position: PhysicalPosition::default(),
-            pipeline_deque: pipeline_deque,
+            pipeline_deque,
             window,
         })
     }

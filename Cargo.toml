@@ -38,6 +38,7 @@ wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 
 # RUN LOCAL
 # cargo run
+# bacon
 
 # RUN ON WEB
 # wasm-pack build --dev --target web
