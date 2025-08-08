@@ -42,3 +42,7 @@ wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 
 # RUN ON WEB
 # wasm-pack build --dev --target web
+
+
+# TODO
+# add thiserror to library
