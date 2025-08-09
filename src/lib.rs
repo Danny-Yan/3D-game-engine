@@ -77,7 +77,7 @@ const _PENTAGON_VERTICES: &[Vertex] = &[
     }, // E
 ];
 
-// Usetful for eliminating duplicate vertices when leading with complex polygons
+// Useful for eliminating duplicate vertices when creating complex polygons
 const _PENTAGON_INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 // A single instance of vertex buffer with indices
