@@ -8,10 +8,126 @@ use winit::{
     window::Window,
 };
 
+use serde::Deserialize;
 use std::collections::VecDeque;
+use wgpu::util::DeviceExt;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+trait Cycle {
+    fn cycle(&mut self) -> anyhow::Result<()>;
+}
+
+impl<T> Cycle for VecDeque<T> {
+    fn cycle(&mut self) -> anyhow::Result<()> {
+        let front_item = self.pop_front().ok_or(wgpu::SurfaceError::OutOfMemory)?;
+        self.push_back(front_item);
+        Ok(())
+    }
+}
+
+// Describes a single vertex
+// bytemuck::Pod => Plain old data
+// bytemuck::Zeroable => can use std::mem:zeroed()
+#[repr(C)]
+#[derive(Deserialize, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+//  Describes a single triangle made of vertices
+// Counter-clockwise (As specified in primitive)
+// const VERTICES: &[Vertex] = &[
+//     Vertex {
+//         position: [0.0, 0.5, 0.0],
+//         color: [1.0, 0.0, 0.0],
+//     },
+//     Vertex {
+//         position: [-0.5, -0.5, 0.0],
+//         color: [0.0, 1.0, 0.0],
+//     },
+//     Vertex {
+//         position: [0.5, -0.5, 0.0],
+//         color: [0.0, 0.0, 1.0],
+//     },
+// ];
+
+const _PENTAGON_VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [-0.0868241, 0.49240386, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // A
+    Vertex {
+        position: [-0.49513406, 0.06958647, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // B
+    Vertex {
+        position: [-0.21918549, -0.44939706, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // C
+    Vertex {
+        position: [0.35966998, -0.3473291, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // D
+    Vertex {
+        position: [0.44147372, 0.2347359, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // E
+];
+
+// Usetful for eliminating duplicate vertices when leading with complex polygons
+const _PENTAGON_INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
+
+// A single instance of vertex buffer with indices
+struct VertBufferItem {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
+}
+
+impl Vertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        // defined how vertex buffer is represented in memory
+        wgpu::VertexBufferLayout {
+            // How wide a vertex is (24 bytes in this case)
+            // Shader will skip over this many bytes to read the next vertex
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+
+            // Describes each elm in array per vertex data or per instance data
+            step_mode: wgpu::VertexStepMode::Vertex,
+
+            // Individual parts of the vertex (same as vertex struct)
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,                             // Offset in bytes until next attribute starts
+                    shader_location: 0, // @location(0) x: vec3<f32> => position field
+                    format: wgpu::VertexFormat::Float32x3, // Shape of attribute in shader code (Float32x3 => vec3<f32>)
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1, // @location(1) x: vec3<f32> => color field
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
+        }
+
+        // Macro for the above code
+        // const ATTRIBS: [wgpu::VertexAttribute; 2] =
+        //     wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+
+        // fn desc() -> wgpu::VertexBufferLayout<'static> {
+        //     use std::mem;
+
+        //     wgpu::VertexBufferLayout {
+        //         array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+        //         step_mode: wgpu::VertexStepMode::Vertex,
+        //         attributes: &Self::ATTRIBS,
+        //     }
+        // }
+    }
+}
 
 // This will store the state of our game
 pub struct State {
@@ -20,11 +136,12 @@ pub struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
-    position: PhysicalPosition<f64>,
+    mouse_position: PhysicalPosition<f64>,
     window: Arc<Window>,
 
     // Rendering pipeline (Used for implementing shaders)
     pipeline_deque: VecDeque<wgpu::RenderPipeline>,
+    vert_buffer_deque: VecDeque<VertBufferItem>,
 }
 
 impl State {
@@ -135,7 +252,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -185,7 +302,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -228,14 +345,21 @@ impl State {
 
         let pipeline_deque = VecDeque::from([_main_pipeline, _challenge3_pipeline]);
 
+        let vert_buffer_deque = VecDeque::from([State::create_buffer_item(
+            &device,
+            _PENTAGON_VERTICES,
+            _PENTAGON_INDICES,
+        )]);
+
         Ok(Self {
             surface,
             device,
             queue,
             config,
             is_surface_configured: false,
-            position: PhysicalPosition::default(),
+            mouse_position: PhysicalPosition::default(),
             pipeline_deque,
+            vert_buffer_deque,
             window,
         })
     }
@@ -251,6 +375,32 @@ impl State {
         }
     }
 
+    fn create_buffer_item(
+        device: &wgpu::Device,
+        vertices: &[Vertex],
+        indices: &[u16],
+    ) -> VertBufferItem {
+        // Vertex buffer initialistion
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(vertices), // Cast to &[u8]
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let num_indices = indices.len() as u32;
+
+        VertBufferItem {
+            vertex_buffer,
+            index_buffer,
+            num_indices,
+        }
+    }
+
     // Handles keyboard events
     fn handle_key(
         &mut self,
@@ -261,26 +411,28 @@ impl State {
         match (code, is_pressed) {
             (KeyCode::Escape, true) => event_loop.exit(),
             (KeyCode::Space, true) => self.switch_render()?,
+            (KeyCode::KeyS, true) => self.switch_shape()?,
             _ => {}
         }
         Ok(())
     }
 
+    fn switch_shape(&mut self) -> anyhow::Result<()> {
+        self.vert_buffer_deque.cycle()?;
+        Ok(())
+    }
+
     fn switch_render(&mut self) -> anyhow::Result<()> {
-        let front_item = self
-            .pipeline_deque
-            .pop_front()
-            .ok_or(wgpu::SurfaceError::OutOfMemory)?;
-        self.pipeline_deque.push_back(front_item);
+        self.pipeline_deque.cycle()?;
         Ok(())
     }
 
     fn handle_mouse_position(&mut self, position: &mut PhysicalPosition<f64>) {
-        self.position = *position;
+        self.mouse_position = *position;
     }
 
     fn update(&mut self) {
-        // remove `todo!()`
+        todo!();
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -314,8 +466,8 @@ impl State {
                 resolve_target: None, // Texture that will recieve the resolved output
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: self.position.x / self.config.width as f64,
-                        g: self.position.y / self.config.height as f64,
+                        r: self.mouse_position.x / self.config.width as f64,
+                        g: self.mouse_position.y / self.config.height as f64,
                         b: 0.0,
                         a: 1.0,
                     }),
@@ -327,12 +479,31 @@ impl State {
             timestamp_writes: None,
         });
 
+        // Load render pipeline
         render_pass.set_pipeline(
             self.pipeline_deque
                 .front()
                 .ok_or(wgpu::SurfaceError::OutOfMemory)?,
-        ); // Load render pipeline
-        render_pass.draw(0..3, 0..1); // Create "Something" with 3 vertices and 1 instance
+        );
+
+        // Get front most vertex buffer item
+        let front_vertbuf_item = self
+            .vert_buffer_deque
+            .front()
+            .ok_or(wgpu::SurfaceError::OutOfMemory)?;
+
+        // Load data for vertex buffer
+        render_pass.set_vertex_buffer(0, front_vertbuf_item.vertex_buffer.slice(..));
+
+        // Index buffer (CAN ONLY HAVE ONE SET AT A TIME)
+        render_pass.set_index_buffer(
+            front_vertbuf_item.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+
+        // Create "Something" with the given number of vertices and indices
+        // Regular draw() ignores indices
+        render_pass.draw_indexed(0..front_vertbuf_item.num_indices, 0, 0..1);
 
         // Render pass mutably borrows encoder
         // in order to continue using encoder, this borrow needs to be released
