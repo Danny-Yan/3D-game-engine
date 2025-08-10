@@ -8,9 +8,9 @@ use winit::{
     window::Window,
 };
 
-// mod vertex_handler;
+mod vertex_handler;
 use std::collections::VecDeque;
-// use vertex_handler::{Vertex, parse_json};
+use vertex_handler::Vertex;
 use wgpu::util::DeviceExt;
 
 #[cfg(target_arch = "wasm32")]
@@ -25,58 +25,6 @@ impl<T> Cycle for VecDeque<T> {
         let front_item = self.pop_front().ok_or(wgpu::SurfaceError::OutOfMemory)?;
         self.push_back(front_item);
         Ok(())
-    }
-}
-
-// Describes a single vertex
-// bytemuck::Pod => Plain old data
-// bytemuck::Zeroable => can use std::mem:zeroed()
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
-}
-
-impl Vertex {
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
-        // defined how vertex buffer is represented in memory
-        wgpu::VertexBufferLayout {
-            // How wide a vertex is (24 bytes in this case)
-            // Shader will skip over this many bytes to read the next vertex
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-
-            // Describes each elm in array per vertex data or per instance data
-            step_mode: wgpu::VertexStepMode::Vertex,
-
-            // Individual parts of the vertex (same as vertex struct)
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,                             // Offset in bytes until next attribute starts
-                    shader_location: 0, // @location(0) x: vec3<f32> => position field
-                    format: wgpu::VertexFormat::Float32x3, // Shape of attribute in shader code (Float32x3 => vec3<f32>)
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1, // @location(1) x: vec3<f32> => color field
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-
-        // Macro for the above code
-        // const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        //     wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
-
-        // fn desc() -> wgpu::VertexBufferLayout<'static> {
-        //     use std::mem;
-
-        //     wgpu::VertexBufferLayout {
-        //         array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-        //         step_mode: wgpu::VertexStepMode::Vertex,
-        //         attributes: &Self::ATTRIBS,
-        //     }
-        // }
     }
 }
 
@@ -96,32 +44,6 @@ impl Vertex {
 //         color: [0.0, 0.0, 1.0],
 //     },
 // ];
-
-const _PENTAGON_VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [-0.0868241, 0.49240386, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // A
-    Vertex {
-        position: [-0.49513406, 0.06958647, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // B
-    Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // C
-    Vertex {
-        position: [0.35966998, -0.3473291, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // D
-    Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // E
-];
-
-// Useful for eliminating duplicate vertices when creating complex polygons
-const _PENTAGON_INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 // A single instance of vertex buffer with indices
 struct VertBufferItem {
@@ -143,6 +65,7 @@ pub struct State {
     // Rendering pipeline (Used for implementing shaders)
     pipeline_deque: VecDeque<wgpu::RenderPipeline>,
     vert_buffer_deque: VecDeque<VertBufferItem>,
+    diffuse_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -227,6 +150,123 @@ impl State {
             // I.e surface is sRGB => texture view created with linear color space
             desired_maximum_frame_latency: 2,
         };
+
+        // TEXTURE MAKING
+        let diffuse_bytes = include_bytes!("happy_tree.png");
+        let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
+        let diffuse_rgba = diffuse_image.to_rgba8();
+
+        use image::GenericImageView;
+        let dimensions = diffuse_image.dimensions();
+
+        let texture_size = wgpu::Extent3d {
+            width: dimensions.0,
+            height: dimensions.1,
+            // All textures are stored as 3D, we represent our 2D texture
+            // by setting depth to 1.
+            depth_or_array_layers: 1,
+        };
+        let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
+            size: texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            // Most images are stored using sRGB, so we need to reflect that here.
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
+            // COPY_DST means that we want to copy data to this texture
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            label: Some("diffuse_texture"),
+            // This is the same as with the SurfaceConfig. It
+            // specifies what texture formats can be used to
+            // create TextureViews for this texture. The base
+            // texture format (Rgba8UnormSrgb in this case) is
+            // always supported. Note that using a different
+            // texture format is not supported on the WebGL2
+            // backend.
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            // Tells wgpu where to copy the pixel data
+            wgpu::TexelCopyTextureInfo {
+                texture: &diffuse_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            // The actual pixel data
+            &diffuse_rgba,
+            // The layout of the texture
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * dimensions.0),
+                rows_per_image: Some(dimensions.1),
+            },
+            texture_size,
+        );
+
+        // TEXTURE VIEW: offers a view into our texture
+        // We don't need to configure the texture view much, so let's
+        // let wgpu define it.
+        let diffuse_texture_view =
+            diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // SAMPLER: controls how the texture is sampled (Which color is picked based on the texture coord chosen)
+        let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            // Address_mode_* determine what to do if texture coord is outside texture itself
+            address_mode_u: wgpu::AddressMode::ClampToEdge, // Clamp to nearest pixel on the edge of texture
+            address_mode_v: wgpu::AddressMode::ClampToEdge, // Could be "ClampToEdge, Repeat, MirroredRepeat"
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+
+            // Tell what to do when sample footprint is smaller or larger than one texel
+            mag_filter: wgpu::FilterMode::Linear, // Linear interpolate pixels (Smooth)
+            min_filter: wgpu::FilterMode::Nearest, // Chose nearest pixel to texel coords (Pixelated)
+
+            // MIPMAP: controls how the texture is sampled when zoomed out
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        // This should match the filterable field of the
+                        // corresponding Texture entry above.
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
 
         // Loading shaders
         // Shader shortcut for this
@@ -346,11 +386,14 @@ impl State {
 
         let pipeline_deque = VecDeque::from([_main_pipeline, _challenge3_pipeline]);
 
-        let vert_buffer_deque = VecDeque::from([State::create_buffer_item(
-            &device,
-            _PENTAGON_VERTICES,
-            _PENTAGON_INDICES,
-        )]);
+        // Create vertices from json file
+        let vertex_json_container = vertex_handler::parse_json("src/vertices.json")?;
+        let vert_buffer_deque = VecDeque::from(
+            vertex_json_container
+                .into_iter()
+                .map(|shape| State::create_buffer_item(&device, &shape.vertices, &shape.indices))
+                .collect::<Vec<_>>(),
+        );
 
         Ok(Self {
             surface,
@@ -362,6 +405,7 @@ impl State {
             pipeline_deque,
             vert_buffer_deque,
             window,
+            diffuse_bind_group,
         })
     }
 

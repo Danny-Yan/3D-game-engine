@@ -12,7 +12,15 @@ pub struct Vertex {
 }
 
 #[derive(Deserialize, Clone, Debug)]
-struct Container(Vec<Vertex>);
+pub struct Shape {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u16>,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+struct Container {
+    contents: Vec<Shape>,
+}
 
 impl Vertex {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -56,14 +64,11 @@ impl Vertex {
     }
 }
 
-pub fn parse_json(path: &str) {
-    let data: &str = &fs::read_to_string(path).expect("Should be able to read hosts file");
+pub fn parse_json(path: &str) -> anyhow::Result<Vec<Shape>> {
+    let data: &str = &fs::read_to_string(path)?;
 
     // Parse the string of data into serde_json::Value.
-    let container: Container = serde_json::from_str(data).expect("Failed to deserialize");
-    println!("Deserialize result: {:?}", &container.0);
-}
-
-fn main() {
-    parse_json("/vertices");
+    let container: Container = serde_json::from_str(data)?;
+    println!("Deserialize result: {:?}", &container.contents);
+    Ok(container.contents)
 }
