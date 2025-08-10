@@ -1,0 +1,83 @@
+[
+    {
+        "vertices": [
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            },
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            },
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            }
+        ],
+        "indices": [
+            0,
+            1,
+            2
+        ]
+    },
+        {
+        "vertices": [
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            },
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            },
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            }
+        ],
+        "indices": [
+            0,
+            1,
+            2
+        ]
+    },
+    {
+        "vertices": [
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            },
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            },
+            {
+                "Vertex": {
+                    "position": [],
+                    "color": []
+                }
+            }
+        ],
+        "indices": [
+            0,
+            1,
+            2
+        ]
+    }
+]

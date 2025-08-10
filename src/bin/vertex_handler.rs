@@ -1,17 +1,21 @@
 use serde::Deserialize;
+use std::{fmt::Debug, fs};
 
 // Describes a single vertex
 // bytemuck::Pod => Plain old data
 // bytemuck::Zeroable => can use std::mem:zeroed()
 #[repr(C)]
 #[derive(Deserialize, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
 }
 
+#[derive(Deserialize, Clone, Debug)]
+struct Container(Vec<Vertex>);
+
 impl Vertex {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         // defined how vertex buffer is represented in memory
         wgpu::VertexBufferLayout {
             // How wide a vertex is (24 bytes in this case)
@@ -50,4 +54,16 @@ impl Vertex {
         //     }
         // }
     }
+}
+
+pub fn parse_json(path: &str) {
+    let data: &str = &fs::read_to_string(path).expect("Should be able to read hosts file");
+
+    // Parse the string of data into serde_json::Value.
+    let container: Container = serde_json::from_str(data).expect("Failed to deserialize");
+    println!("Deserialize result: {:?}", &container.0);
+}
+
+fn main() {
+    parse_json("/vertices");
 }
