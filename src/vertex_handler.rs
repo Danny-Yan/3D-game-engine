@@ -8,7 +8,7 @@ use std::{fmt::Debug, fs};
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
-    pub tex_coords: [f32; 2],
+    pub tex_coords: [f32; 2], // OR color: [f32; 3]
 }
 
 // #[repr(C)]
@@ -80,40 +80,6 @@ impl Vertex {
         // }
     }
 }
-
-// impl<'de> Deserialize<'de> for Vertex {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: serde::Deserializer<'de>,
-//     {
-//         #[derive(Deserialize)]
-//         #[serde(untagged)]
-//         enum AccessVariants {
-//             String(String),
-//             Struct {
-//                 #[serde(rename = "type")]
-//                 access_type: String,
-//                 #[serde(default = "default_actions")] // allow `{ "type": "foo" }`
-//                 // (no actions field == empty Vec)
-//                 actions: Option<Vec<String>>,
-//             },
-//         }
-
-//         Ok(match AccessVariants::deserialize(deserializer)? {
-//             AccessVariants::String(access_type) => Self {
-//                 access_type,
-//                 actions: None,
-//             },
-//             AccessVariants::Struct {
-//                 access_type,
-//                 actions,
-//             } => Self {
-//                 access_type,
-//                 actions,
-//             },
-//         })
-//     }
-// }
 
 pub fn parse_json(path: &str) -> anyhow::Result<Vec<Shape>> {
     let data: &str = &fs::read_to_string(path)?;

@@ -86,7 +86,7 @@ impl State {
             ..Default::default()
         });
 
-        let surface = instance.create_surface(window.clone()).unwrap();
+        let surface = instance.create_surface(window.clone())?;
 
         //Handle for gpu, used to create device and queue later
         let adapter = instance
@@ -156,7 +156,7 @@ impl State {
         // TEXTURE MAKING
         let diffuse_bytes = include_bytes!("happy_tree.png");
         let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy_tree.png").unwrap();
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy_tree.png")?;
 
         // Bind group layout: Master bind group with which other bind groups can extend from
         let texture_bind_group_layout =
