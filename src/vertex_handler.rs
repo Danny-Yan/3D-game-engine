@@ -1,23 +1,40 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, fs};
 
 // Describes a single vertex
 // bytemuck::Pod => Plain old data
 // bytemuck::Zeroable => can use std::mem:zeroed()
 #[repr(C)]
-#[derive(Deserialize, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Deserialize, Serialize, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub tex_coords: [f32; 2],
 }
 
-#[derive(Deserialize, Clone, Debug)]
+// #[repr(C)]
+// #[derive(Deserialize, Serialize, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+// pub struct VertexTexCoord {
+//     pub position: [f32; 3],
+//     pub tex_coords: [f32; 2],
+// }
+
+// #[typetag::serde]
+// pub trait VertexKind: std::fmt::Debug {}
+
+// #[typetag::serde]
+// impl VertexKind for Vertex {}
+
+// #[typetag::serde]
+// impl VertexKind for VertexTexCoord {}
+
+// Implement clone and debug somehow for dynamic trait Box<dyn VertexKind>
+#[derive(Deserialize, Debug, Clone)]
 pub struct Shape {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u16>,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Container {
     contents: Vec<Shape>,
 }
@@ -43,7 +60,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1, // @location(1) x: vec3<f32> => color field
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
             ],
         }
@@ -64,11 +81,45 @@ impl Vertex {
     }
 }
 
+// impl<'de> Deserialize<'de> for Vertex {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: serde::Deserializer<'de>,
+//     {
+//         #[derive(Deserialize)]
+//         #[serde(untagged)]
+//         enum AccessVariants {
+//             String(String),
+//             Struct {
+//                 #[serde(rename = "type")]
+//                 access_type: String,
+//                 #[serde(default = "default_actions")] // allow `{ "type": "foo" }`
+//                 // (no actions field == empty Vec)
+//                 actions: Option<Vec<String>>,
+//             },
+//         }
+
+//         Ok(match AccessVariants::deserialize(deserializer)? {
+//             AccessVariants::String(access_type) => Self {
+//                 access_type,
+//                 actions: None,
+//             },
+//             AccessVariants::Struct {
+//                 access_type,
+//                 actions,
+//             } => Self {
+//                 access_type,
+//                 actions,
+//             },
+//         })
+//     }
+// }
+
 pub fn parse_json(path: &str) -> anyhow::Result<Vec<Shape>> {
     let data: &str = &fs::read_to_string(path)?;
 
     // Parse the string of data into serde_json::Value.
     let container: Container = serde_json::from_str(data)?;
-    println!("Deserialize result: {:?}", &container.contents);
+    // println!("Deserialize result: {:?}", &container.contents);
     Ok(container.contents)
 }
