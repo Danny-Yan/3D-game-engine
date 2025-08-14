@@ -1,5 +1,6 @@
 use anyhow::*;
 use image::GenericImageView;
+use std::fs;
 
 pub struct Texture {
     #[allow(unused)]
@@ -12,14 +13,15 @@ impl Texture {
     pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        bytes: &[u8],
+        path: &str,
         label: &str,
     ) -> Result<Self> {
-        let img = image::load_from_memory(bytes)?;
+        let bytes = fs::read(path)?;
+        let img = image::load_from_memory(&bytes)?;
         Self::from_image(device, queue, &img, Some(label))
     }
 
-    pub fn from_image(
+    fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,

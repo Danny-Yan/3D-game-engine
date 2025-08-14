@@ -12,10 +12,16 @@ mod vertex_handler;
 use std::collections::VecDeque;
 use vertex_handler::Vertex;
 use wgpu::util::DeviceExt;
+mod camera;
+mod keybind;
 mod texture;
+mod transform;
+use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+use crate::{camera::CameraController, transform::TransformController};
 
 trait Cycle {
     fn cycle(&mut self) -> anyhow::Result<()>;
@@ -28,23 +34,6 @@ impl<T> Cycle for VecDeque<T> {
         Ok(())
     }
 }
-
-//  Describes a single triangle made of vertices
-// Counter-clockwise (As specified in primitive)
-// const VERTICES: &[Vertex] = &[
-//     Vertex {
-//         position: [0.0, 0.5, 0.0],
-//         color: [1.0, 0.0, 0.0],
-//     },
-//     Vertex {
-//         position: [-0.5, -0.5, 0.0],
-//         color: [0.0, 1.0, 0.0],
-//     },
-//     Vertex {
-//         position: [0.5, -0.5, 0.0],
-//         color: [0.0, 0.0, 1.0],
-//     },
-// ];
 
 // A single instance of vertex buffer with indices
 struct VertBufferItem {
@@ -68,6 +57,18 @@ pub struct State {
     vert_buffer_deque: VecDeque<VertBufferItem>,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
+
+    camera_object: camera::Camera,
+    camera_uniform: camera::CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    camera_controller: camera::CameraController,
+
+    transform_object: transform::Transform,
+    transform_uniform: transform::TransformUniform,
+    transform_buffer: wgpu::Buffer,
+    transform_bind_group: wgpu::BindGroup,
+    transform_controller: transform::TransformController,
 }
 
 impl State {
@@ -154,9 +155,8 @@ impl State {
         };
 
         // TEXTURE MAKING
-        let diffuse_bytes = include_bytes!("happy_tree.png");
         let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy_tree.png")?;
+            texture::Texture::from_bytes(&device, &queue, "src/happy_tree.png", "happy tree")?;
 
         // Bind group layout: Master bind group with which other bind groups can extend from
         let texture_bind_group_layout =
@@ -205,6 +205,85 @@ impl State {
             label: Some("diffuse_bind_group"),
         });
 
+        // TRANSFORM -----------------------------------
+        let transform_object = transform::Transform::default();
+
+        let mut transform_uniform = transform::TransformUniform::new();
+        transform_uniform.update_matrix(&transform_object);
+
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[transform_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let transform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX, // Only visible to vertex shader
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false, // Location of the data in the transform_buffer may change (if true)
+                        min_binding_size: None,    // Smallest buffer size
+                    },
+                    count: None,
+                }],
+                label: Some("transform_bind_group_layout"),
+            });
+
+        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &transform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            }],
+            label: Some("transform_bind_group"),
+        });
+
+        let transform_controller = TransformController::new();
+
+        // CAMERA -----------------------------------
+        let camera_object = camera::Camera {
+            aspect: config.width as f32 / config.height as f32,
+            ..Default::default()
+        };
+
+        let mut camera_uniform = camera::CameraUniform::new();
+        camera_uniform.update_view_proj(&camera_object);
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX, // Only visible to vertex shader
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false, // Location of the data in the camera_buffer may change (if true)
+                        min_binding_size: None,    // Smallest buffer size
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
+        let camera_controller = CameraController::new(0.1);
+
         // Loading shaders
         // Shader shortcut for this
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -217,7 +296,11 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &transform_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -344,6 +427,17 @@ impl State {
             window,
             diffuse_bind_group,
             diffuse_texture,
+            camera_object,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            camera_controller,
+
+            transform_object,
+            transform_buffer,
+            transform_uniform,
+            transform_bind_group,
+            transform_controller,
         })
     }
 
@@ -394,7 +488,59 @@ impl State {
         match (code, is_pressed) {
             (KeyCode::Escape, true) => event_loop.exit(),
             (KeyCode::Space, true) => self.switch_render()?,
-            (KeyCode::KeyS, true) => self.switch_shape()?,
+            (KeyCode::KeyY, true) => self.switch_shape()?,
+            (KeyCode::KeyW | KeyCode::ArrowUp, _) => {
+                self.camera_controller
+                    .handle_keybind(CameraKeybind::Forward, is_pressed)?;
+            }
+            (KeyCode::KeyA | KeyCode::ArrowLeft, _) => {
+                self.camera_controller
+                    .handle_keybind(CameraKeybind::Left, is_pressed)?;
+            }
+            (KeyCode::KeyS | KeyCode::ArrowDown, _) => {
+                self.camera_controller
+                    .handle_keybind(CameraKeybind::Backward, is_pressed)?;
+            }
+            (KeyCode::KeyD | KeyCode::ArrowRight, _) => {
+                self.camera_controller
+                    .handle_keybind(CameraKeybind::Right, is_pressed)?;
+            }
+            (KeyCode::KeyI, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::RotateX, is_pressed)?;
+            }
+            (KeyCode::KeyO, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::RotateY, is_pressed)?;
+            }
+            (KeyCode::KeyP, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::RotateZ, is_pressed)?;
+            }
+            (KeyCode::KeyK, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::TranslateX, is_pressed)?;
+            }
+            (KeyCode::KeyL, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::TranslateY, is_pressed)?;
+            }
+            (KeyCode::Semicolon, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::TranslateZ, is_pressed)?;
+            }
+            (KeyCode::Comma, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::ScaleX, is_pressed)?;
+            }
+            (KeyCode::Period, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::ScaleY, is_pressed)?;
+            }
+            (KeyCode::Slash, _) => {
+                self.transform_controller
+                    .handle_keybind(TransformKeybind::ScaleZ, is_pressed)?;
+            }
             _ => {}
         }
         Ok(())
@@ -415,7 +561,25 @@ impl State {
     }
 
     fn update(&mut self) {
-        todo!();
+        self.camera_controller
+            .update_camera(&mut self.camera_object);
+        self.camera_uniform.update_view_proj(&self.camera_object);
+
+        self.transform_controller
+            .update_transform(&mut self.transform_object);
+        self.transform_uniform.update_matrix(&self.transform_object);
+
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
+
+        self.queue.write_buffer(
+            &self.transform_buffer,
+            0,
+            bytemuck::cast_slice(&[self.transform_uniform]),
+        );
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -471,6 +635,8 @@ impl State {
 
         // Load bind group
         render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+        render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+        render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
 
         // Get front most vertex buffer item
         let front_vertbuf_item = self
@@ -628,6 +794,8 @@ impl ApplicationHandler<State> for App {
             }
             _ => {}
         }
+
+        state.update();
     }
 }
 

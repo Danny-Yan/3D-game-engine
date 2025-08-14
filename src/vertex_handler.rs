@@ -89,3 +89,20 @@ pub fn parse_json(path: &str) -> anyhow::Result<Vec<Shape>> {
     // println!("Deserialize result: {:?}", &container.contents);
     Ok(container.contents)
 }
+
+//  Describes a single triangle made of vertices
+// Counter-clockwise (As specified in primitive)
+// const VERTICES: &[Vertex] = &[
+//     Vertex {
+//         position: [0.0, 0.5, 0.0],
+//         color: [1.0, 0.0, 0.0],
+//     },
+//     Vertex {
+//         position: [-0.5, -0.5, 0.0],
+//         color: [0.0, 1.0, 0.0],
+//     },
+//     Vertex {
+//         position: [0.5, -0.5, 0.0],
+//         color: [0.0, 0.0, 1.0],
+//     },
+// ];

@@ -16,6 +16,21 @@
 //     @location(0) color: vec3<f32>,
 // };
 
+// Camera
+struct CameraUniform {
+    view_proj: mat4x4<f32>,
+};
+@group(1) @binding(0) // From camera_bind_group
+var<uniform> camera: CameraUniform;
+
+// Transform
+struct TransformUniform {
+    matrix: mat4x4<f32>,
+};
+@group(2) @binding(0) // From transform_bind_group
+var<uniform> transform: TransformUniform;
+
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
@@ -33,7 +48,7 @@ fn vs_main(
     // Triangle
     var out: VertexOutput;
     out.tex_coords  = model.tex_coords;
-    out.framebuffer_position = vec4<f32>(model.position, 1.0);
+    out.framebuffer_position = camera.view_proj * transform.matrix * vec4<f32>(model.position, 1.0);
     return out;
 }
 
