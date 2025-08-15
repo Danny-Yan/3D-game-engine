@@ -16,24 +16,14 @@ mod camera;
 mod keybind;
 mod texture;
 mod transform;
+mod util;
 use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
+use util::Cycle;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use crate::{camera::CameraController, transform::TransformController};
-
-trait Cycle {
-    fn cycle(&mut self) -> anyhow::Result<()>;
-}
-
-impl<T> Cycle for VecDeque<T> {
-    fn cycle(&mut self) -> anyhow::Result<()> {
-        let front_item = self.pop_front().ok_or(wgpu::SurfaceError::OutOfMemory)?;
-        self.push_back(front_item);
-        Ok(())
-    }
-}
 
 // A single instance of vertex buffer with indices
 struct VertBufferItem {
@@ -425,8 +415,10 @@ impl State {
             pipeline_deque,
             vert_buffer_deque,
             window,
+
             diffuse_bind_group,
             diffuse_texture,
+
             camera_object,
             camera_uniform,
             camera_buffer,

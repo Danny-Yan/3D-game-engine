@@ -1,10 +1,11 @@
 use crate::keybind::KeybindHandler;
 use crate::keybind::TransformKeybind;
+use crate::util::RadWrapper;
 use anyhow::Ok;
 use cgmath::Matrix4;
 
 pub struct Transform {
-    rotation: cgmath::Vector3<cgmath::Rad<f32>>,
+    rotation: cgmath::Vector3<RadWrapper<f32>>,
     translation: cgmath::Vector3<f32>,
     scale: cgmath::Vector3<f32>,
 }
@@ -12,9 +13,9 @@ pub struct Transform {
 impl Transform {
     pub fn to_matrix(&self) -> cgmath::Matrix4<f32> {
         // Rotation
-        let rotation_matrix: Matrix4<f32> = cgmath::Matrix4::from_angle_x(self.rotation.x)
-            * cgmath::Matrix4::from_angle_y(self.rotation.y)
-            * cgmath::Matrix4::from_angle_z(self.rotation.z);
+        let rotation_matrix: Matrix4<f32> = cgmath::Matrix4::from_angle_x(self.rotation.x.0)
+            * cgmath::Matrix4::from_angle_y(self.rotation.y.0)
+            * cgmath::Matrix4::from_angle_z(self.rotation.z.0);
         // Translation
         let translation_matrix: Matrix4<f32> = cgmath::Matrix4::from_translation(self.translation);
         // Scale
@@ -28,7 +29,11 @@ impl Transform {
 impl Default for Transform {
     fn default() -> Self {
         Self {
-            rotation: cgmath::Vector3::new(cgmath::Rad(0.0), cgmath::Rad(0.0), cgmath::Rad(0.0)),
+            rotation: cgmath::Vector3::new(
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            ),
             translation: cgmath::Zero::zero(),
             scale: cgmath::Vector3::new(1.0, 1.0, 1.0),
         }
@@ -63,7 +68,7 @@ struct TrueAxisTable {
 
 #[derive(Default)]
 pub struct TransformController {
-    rotation_speed: f32,
+    rotation_speed: RadWrapper<f32>,
     translation_speed: f32,
     scale_speed: f32,
 
@@ -75,15 +80,33 @@ pub struct TransformController {
 impl TransformController {
     pub fn new() -> Self {
         Self {
-            rotation_speed: 0.2,
+            rotation_speed: RadWrapper::<f32>::new(0.2),
             translation_speed: 0.2,
             scale_speed: 0.2,
             ..Default::default()
         }
     }
 
-    pub fn update_transform(&mut self, transform: &Transform) {
-        todo!();
+    fn match_axis<T: Default + Copy>(&self, axis: bool, value: &T) -> T {
+        match axis {
+            true => *value,
+            false => T::default(),
+        }
+    }
+
+    pub fn update_transform(&mut self, transform: &mut Transform) {
+        transform.rotation.x = self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
+        transform.rotation.y = self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
+        transform.rotation.z = self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
+        transform.translation.x =
+            self.match_axis(self.translation_truth_table.x, &self.translation_speed);
+        transform.translation.y =
+            self.match_axis(self.translation_truth_table.y, &self.translation_speed);
+        transform.translation.z =
+            self.match_axis(self.translation_truth_table.z, &self.translation_speed);
+        transform.scale.x = self.match_axis(self.scale_truth_table.x, &self.scale_speed);
+        transform.scale.y = self.match_axis(self.scale_truth_table.y, &self.scale_speed);
+        transform.scale.z = self.match_axis(self.scale_truth_table.z, &self.scale_speed);
     }
 }
 
