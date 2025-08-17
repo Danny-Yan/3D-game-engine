@@ -1,42 +1,33 @@
 use crate::keybind::KeybindHandler;
 use crate::keybind::TransformKeybind;
-use crate::util::RadWrapper;
+use crate::util::{RadWrapper, ScaleValue, TranslationValue, Vector3Wrapper};
 use anyhow::Ok;
 use cgmath::Matrix4;
 
+#[derive(Default)]
 pub struct Transform {
-    rotation: cgmath::Vector3<RadWrapper<f32>>,
-    translation: cgmath::Vector3<f32>,
-    scale: cgmath::Vector3<f32>,
+    rotation: Vector3Wrapper<RadWrapper<f32>>,
+    translation: Vector3Wrapper<f32>, // WHY DOES THIS NOT WORK
+    scale: Vector3Wrapper<ScaleValue>,
 }
 
 impl Transform {
     pub fn to_matrix(&self) -> cgmath::Matrix4<f32> {
         // Rotation
-        let rotation_matrix: Matrix4<f32> = cgmath::Matrix4::from_angle_x(self.rotation.x.0)
-            * cgmath::Matrix4::from_angle_y(self.rotation.y.0)
-            * cgmath::Matrix4::from_angle_z(self.rotation.z.0);
+        let rotation_matrix: Matrix4<f32> = cgmath::Matrix4::from_angle_x(self.rotation.x().0)
+            * cgmath::Matrix4::from_angle_y(self.rotation.y().0)
+            * cgmath::Matrix4::from_angle_z(self.rotation.z().0);
         // Translation
-        let translation_matrix: Matrix4<f32> = cgmath::Matrix4::from_translation(self.translation);
+        let translation_matrix: Matrix4<f32> =
+            cgmath::Matrix4::from_translation(self.translation.0);
         // Scale
-        let scale_matrix: Matrix4<f32> =
-            cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
+        let scale_matrix: Matrix4<f32> = cgmath::Matrix4::from_nonuniform_scale(
+            self.scale.x().0,
+            self.scale.y().0,
+            self.scale.z().0,
+        );
 
-        translation_matrix * rotation_matrix * scale_matrix
-    }
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self {
-            rotation: cgmath::Vector3::new(
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
-            translation: cgmath::Zero::zero(),
-            scale: cgmath::Vector3::new(1.0, 1.0, 1.0),
-        }
+        rotation_matrix * translation_matrix * scale_matrix
     }
 }
 
@@ -69,8 +60,8 @@ struct TrueAxisTable {
 #[derive(Default)]
 pub struct TransformController {
     rotation_speed: RadWrapper<f32>,
-    translation_speed: f32,
-    scale_speed: f32,
+    translation_speed: TranslationValue,
+    scale_speed: ScaleValue,
 
     rotation_truth_table: TrueAxisTable,
     translation_truth_table: TrueAxisTable,
@@ -81,8 +72,8 @@ impl TransformController {
     pub fn new() -> Self {
         Self {
             rotation_speed: RadWrapper::<f32>::new(0.2),
-            translation_speed: 0.2,
-            scale_speed: 0.2,
+            translation_speed: TranslationValue(0.2),
+            scale_speed: ScaleValue(1.2),
             ..Default::default()
         }
     }
@@ -95,18 +86,18 @@ impl TransformController {
     }
 
     pub fn update_transform(&mut self, transform: &mut Transform) {
-        transform.rotation.x = self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
-        transform.rotation.y = self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
-        transform.rotation.z = self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
-        transform.translation.x =
-            self.match_axis(self.translation_truth_table.x, &self.translation_speed);
-        transform.translation.y =
-            self.match_axis(self.translation_truth_table.y, &self.translation_speed);
-        transform.translation.z =
-            self.match_axis(self.translation_truth_table.z, &self.translation_speed);
-        transform.scale.x = self.match_axis(self.scale_truth_table.x, &self.scale_speed);
-        transform.scale.y = self.match_axis(self.scale_truth_table.y, &self.scale_speed);
-        transform.scale.z = self.match_axis(self.scale_truth_table.z, &self.scale_speed);
+        transform.rotation.0.x = self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
+        transform.rotation.0.y = self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
+        transform.rotation.0.z = self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
+        transform.translation.0.x =
+            self.match_axis(self.translation_truth_table.x, &self.translation_speed.0);
+        transform.translation.0.y =
+            self.match_axis(self.translation_truth_table.y, &self.translation_speed.0);
+        transform.translation.0.z =
+            self.match_axis(self.translation_truth_table.z, &self.translation_speed.0);
+        transform.scale.0.x = self.match_axis(self.scale_truth_table.x, &self.scale_speed);
+        transform.scale.0.y = self.match_axis(self.scale_truth_table.y, &self.scale_speed);
+        transform.scale.0.z = self.match_axis(self.scale_truth_table.z, &self.scale_speed);
     }
 }
 

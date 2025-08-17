@@ -27,6 +27,35 @@ impl Default for RadWrapper<f32> {
     }
 }
 
+impl std::ops::AddAssign for RadWrapper<f32> {
+    fn add_assign(&mut self, other: Self) {
+        self.0 += other.0;
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct TranslationValue(pub f32);
+
+impl Default for TranslationValue {
+    fn default() -> Self {
+        TranslationValue(0.0)
+    }
+}
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ScaleValue(pub f32);
+
+impl Default for ScaleValue {
+    fn default() -> Self {
+        ScaleValue(1.0)
+    }
+}
+
+impl std::ops::AddAssign for ScaleValue {
+    fn add_assign(&mut self, other: Self) {
+        self.0 += other.0;
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vector3Wrapper<T>(pub cgmath::Vector3<T>);
 
@@ -37,5 +66,19 @@ impl<T: Default> Default for Vector3Wrapper<T> {
             T::default(),
             T::default(),
         ))
+    }
+}
+
+impl<T> Vector3Wrapper<T> {
+    pub fn x(self) -> T {
+        self.0.x
+    }
+
+    pub fn y(self) -> T {
+        self.0.y
+    }
+
+    pub fn z(self) -> T {
+        self.0.z
     }
 }
