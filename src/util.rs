@@ -15,9 +15,13 @@ impl<T> Cycle for VecDeque<T> {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RadWrapper<T>(pub cgmath::Rad<T>);
 
-impl<T> RadWrapper<T> {
+impl<T: Clone + Copy> RadWrapper<T> {
     pub fn new(value: T) -> Self {
         RadWrapper(cgmath::Rad(value))
+    }
+
+    pub fn get_inside(&self) -> T {
+        self.0.0
     }
 }
 
@@ -53,6 +57,12 @@ impl Default for ScaleValue {
 impl std::ops::AddAssign for ScaleValue {
     fn add_assign(&mut self, other: Self) {
         self.0 += other.0;
+    }
+}
+
+impl std::ops::MulAssign for ScaleValue {
+    fn mul_assign(&mut self, other: Self) {
+        self.0 *= other.0;
     }
 }
 

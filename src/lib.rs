@@ -1,29 +1,35 @@
-use std::sync::Arc;
-use winit::{
+use egui_wgpu::ScreenDescriptor;
+use egui_wgpu::wgpu;
+use egui_wgpu::wgpu::TextureViewDescriptor;
+use egui_wgpu::wgpu::util::DeviceExt;
+use egui_winit::winit;
+use egui_winit::winit::{
     application::ApplicationHandler,
     dpi::PhysicalPosition,
-    event::*,
+    event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
-
-mod vertex_handler;
 use std::collections::VecDeque;
-use vertex_handler::Vertex;
-use wgpu::util::DeviceExt;
+use std::sync::Arc;
+
 mod camera;
 mod keybind;
 mod texture;
 mod transform;
 mod util;
+mod vertex_handler;
 use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
 use util::Cycle;
+mod gui;
+mod input_controller;
+use crate::{camera::CameraController, transform::TransformController};
+
+mod gui_example;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-
-use crate::{camera::CameraController, transform::TransformController};
 
 // A single instance of vertex buffer with indices
 struct VertBufferItem {
@@ -59,6 +65,9 @@ pub struct State {
     transform_buffer: wgpu::Buffer,
     transform_bind_group: wgpu::BindGroup,
     transform_controller: transform::TransformController,
+
+    egui_renderer: gui::EguiRenderer,
+    gui_state: Box<dyn gui::GuiState>,
 }
 
 impl State {
@@ -86,7 +95,8 @@ impl State {
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
-            .await?;
+            .await
+            .unwrap();
 
         // If the above request adapter does not retrieve a suitable adapter, use code below
         // let adapter = instance
@@ -146,7 +156,7 @@ impl State {
 
         // TEXTURE MAKING
         let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, "src/happy_tree.png", "happy tree")?;
+            texture::Texture::from_bytes(&device, &queue, "src/info/happy_tree.png", "happy tree")?;
 
         // Bind group layout: Master bind group with which other bind groups can extend from
         let texture_bind_group_layout =
@@ -303,7 +313,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[vertex_handler::Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -353,7 +363,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[vertex_handler::Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -397,13 +407,24 @@ impl State {
         let pipeline_deque = VecDeque::from([_main_pipeline, _challenge3_pipeline]);
 
         // Create vertices from json file
-        let vertex_json_container = vertex_handler::parse_json("src/vertices_tex.json")?;
+        let vertex_json_container = vertex_handler::parse_json("src/info/vertices_tex.json")?;
         let vert_buffer_deque = VecDeque::from(
             vertex_json_container
                 .into_iter()
                 .map(|shape| State::create_buffer_item(&device, &shape.vertices, &shape.indices))
                 .collect::<Vec<_>>(),
         );
+
+        let egui_renderer = gui::EguiRenderer::new(
+            &device,       // wgpu Device
+            config.format, // TextureFormat
+            None,          // this can be None
+            1,             // samples
+            &window,       // winit Window
+        );
+
+        // UI variables stored here
+        let gui_state = Box::new(gui_example::GuiExample::default());
 
         Ok(Self {
             surface,
@@ -430,6 +451,9 @@ impl State {
             transform_uniform,
             transform_bind_group,
             transform_controller,
+
+            egui_renderer,
+            gui_state,
         })
     }
 
@@ -446,7 +470,7 @@ impl State {
 
     fn create_buffer_item(
         device: &wgpu::Device,
-        vertices: &[Vertex],
+        vertices: &[vertex_handler::Vertex],
         indices: &[u16],
     ) -> VertBufferItem {
         // Vertex buffer initialistion
@@ -468,6 +492,10 @@ impl State {
             index_buffer,
             num_indices,
         }
+    }
+
+    pub fn window(&self) -> &Window {
+        &self.window
     }
 
     // Handles keyboard events
@@ -653,6 +681,22 @@ impl State {
         // in order to continue using encoder, this borrow needs to be released
         drop(render_pass);
 
+        let screen_descriptor = ScreenDescriptor {
+            size_in_pixels: [self.config.width, self.config.height],
+            pixels_per_point: self.window().scale_factor() as f32,
+        };
+
+        // EGUI
+        self.egui_renderer.draw(
+            &self.device,
+            &self.queue,
+            &mut encoder,
+            &self.window,
+            &view,
+            screen_descriptor,
+            &mut |ui| self.gui_state.show_gui(ui),
+        );
+
         // Submit to GPUs render queue
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -662,6 +706,7 @@ impl State {
     }
 }
 
+#[derive(Default)]
 pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
@@ -787,6 +832,7 @@ impl ApplicationHandler<State> for App {
             _ => {}
         }
 
+        state.egui_renderer.handle_input(&state.window, &event);
         state.update();
     }
 }
