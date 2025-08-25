@@ -2,7 +2,7 @@ use crate::gui;
 use egui::{Align2, Context};
 
 #[derive(Debug, Default)]
-pub struct GuiExample {
+pub struct GuiVersion1 {
     x: f32,
     y: f32,
     z: f32,
@@ -14,7 +14,7 @@ pub struct GuiExample {
     scale_z: f32,
 }
 
-impl gui::GuiState for GuiExample {
+impl gui::GuiState for GuiVersion1 {
     fn show_gui(&mut self, ui: &Context) {
         egui::Window::new("Streamline CFD")
             // .vscroll(true)

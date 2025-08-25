@@ -1,6 +1,5 @@
 use egui_wgpu::ScreenDescriptor;
 use egui_wgpu::wgpu;
-use egui_wgpu::wgpu::TextureViewDescriptor;
 use egui_wgpu::wgpu::util::DeviceExt;
 use egui_winit::winit;
 use egui_winit::winit::{
@@ -15,18 +14,16 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 mod camera;
+mod gui;
+mod gui_state;
+mod input_controller;
 mod keybind;
+use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
 mod texture;
 mod transform;
 mod util;
-mod vertex_handler;
-use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
 use util::Cycle;
-mod gui;
-mod input_controller;
-use crate::{camera::CameraController, transform::TransformController};
-
-mod gui_example;
+mod vertex_handler;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -241,7 +238,7 @@ impl State {
             label: Some("transform_bind_group"),
         });
 
-        let transform_controller = TransformController::new();
+        let transform_controller = transform::TransformController::new();
 
         // CAMERA -----------------------------------
         let camera_object = camera::Camera {
@@ -282,7 +279,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
-        let camera_controller = CameraController::new(0.1);
+        let camera_controller = camera::CameraController::new(0.1);
 
         // Loading shaders
         // Shader shortcut for this
@@ -424,7 +421,7 @@ impl State {
         );
 
         // UI variables stored here
-        let gui_state = Box::new(gui_example::GuiExample::default());
+        let gui_state = Box::new(gui_state::GuiVersion1::default());
 
         Ok(Self {
             surface,
