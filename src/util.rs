@@ -13,25 +13,25 @@ impl<T> Cycle for VecDeque<T> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct RadWrapper<T>(pub cgmath::Rad<T>);
+pub struct RadWrapper(pub cgmath::Rad<f32>);
 
-impl<T: Clone + Copy> RadWrapper<T> {
-    pub fn new(value: T) -> Self {
+impl RadWrapper {
+    pub fn new(value: f32) -> Self {
         RadWrapper(cgmath::Rad(value))
     }
 
-    pub fn get_inside(&self) -> T {
+    pub fn get_inside(&self) -> f32 {
         self.0.0
     }
 }
 
-impl Default for RadWrapper<f32> {
+impl Default for RadWrapper {
     fn default() -> Self {
         RadWrapper(cgmath::Rad(0.0))
     }
 }
 
-impl std::ops::AddAssign for RadWrapper<f32> {
+impl std::ops::AddAssign for RadWrapper {
     fn add_assign(&mut self, other: Self) {
         self.0 += other.0;
     }

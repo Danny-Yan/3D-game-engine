@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 mod camera;
 mod gui;
-mod gui_state;
+mod gui_version1;
 mod input_controller;
 mod keybind;
 use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
@@ -64,7 +64,7 @@ pub struct State {
     transform_controller: transform::TransformController,
 
     egui_renderer: gui::EguiRenderer,
-    gui_state: Box<dyn gui::GuiState>,
+    gui_state: gui_version1::GuiVersion1,
 }
 
 impl State {
@@ -421,7 +421,7 @@ impl State {
         );
 
         // UI variables stored here
-        let gui_state = Box::new(gui_state::GuiVersion1::default());
+        let gui_state = gui_version1::GuiVersion1::default();
 
         Ok(Self {
             surface,
@@ -506,6 +506,9 @@ impl State {
             (KeyCode::Escape, true) => event_loop.exit(),
             (KeyCode::Space, true) => self.switch_render()?,
             (KeyCode::KeyY, true) => self.switch_shape()?,
+
+            // FIX BY CREATING SUPER CONTROLLER and [keycode enum, keybind enum] assign table
+            // (PREVENT different controller from being able to access same keybinds)
             (KeyCode::KeyW | KeyCode::ArrowUp, _) => {
                 self.camera_controller
                     .handle_keybind(CameraKeybind::Forward, is_pressed)?;
@@ -578,19 +581,21 @@ impl State {
     }
 
     fn update(&mut self) {
+        // Camera
         self.camera_controller
             .update_camera(&mut self.camera_object);
         self.camera_uniform.update_view_proj(&self.camera_object);
-
-        self.transform_controller
-            .update_transform(&mut self.transform_object);
-        self.transform_uniform.update_matrix(&self.transform_object);
 
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
+
+        // Transform
+        self.transform_controller
+            .update_transform(&self.gui_state, &mut self.transform_object);
+        self.transform_uniform.update_matrix(&self.transform_object);
 
         self.queue.write_buffer(
             &self.transform_buffer,

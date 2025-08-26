@@ -48,10 +48,8 @@ fn vs_main(
     // Triangle
     var out: VertexOutput;
     out.tex_coords  = model.tex_coords;
-    out.framebuffer_position = 
-        transform.matrix * 
-        camera.view_proj * 
-        vec4<f32>(model.position, 1.0);
+    // ORDER MATTERS FOR FRAME BUFFER (CAMERA ALWAYS LAST)
+    out.framebuffer_position = camera.view_proj * transform.matrix * vec4<f32>(model.position, 1.0);
     return out;
 }
 

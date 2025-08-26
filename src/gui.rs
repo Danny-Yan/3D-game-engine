@@ -114,7 +114,3 @@ impl EguiRenderer {
         }
     }
 }
-
-pub trait GuiState {
-    fn show_gui(&mut self, ui: &Context);
-}

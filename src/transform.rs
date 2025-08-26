@@ -1,3 +1,4 @@
+use crate::gui_version1;
 use crate::keybind::KeybindHandler;
 use crate::keybind::TransformKeybind;
 use crate::util::{RadWrapper, ScaleValue, Vector3Wrapper};
@@ -6,7 +7,7 @@ use cgmath::Matrix4;
 
 #[derive(Default)]
 pub struct Transform {
-    rotation: Vector3Wrapper<RadWrapper<f32>>,
+    rotation: Vector3Wrapper<RadWrapper>,
     translation: Vector3Wrapper<f32>, // WHY DOES THIS NOT WORK
     scale: Vector3Wrapper<ScaleValue>,
 }
@@ -94,7 +95,13 @@ impl TransformController {
         }
     }
 
-    pub fn update_transform(&mut self, transform: &mut Transform) {
+    pub fn update_transform(&mut self, gui: &gui_version1::GuiVersion1, transform: &mut Transform) {
+        // Update the transform based on the current input
+        self.update_gui_transform(gui, transform);
+        // self.update_keyboard_transform(transform);
+    }
+
+    pub fn update_keyboard_transform(&mut self, transform: &mut Transform) {
         let translation = &mut transform.translation.0;
         let rotation = &mut transform.rotation.0;
         let scale = &mut transform.scale.0;
@@ -109,6 +116,27 @@ impl TransformController {
         scale.x.0 += self.match_axis(self.scale_truth_table.x, &self.scale_speed);
         scale.y.0 += self.match_axis(self.scale_truth_table.y, &self.scale_speed);
         scale.z.0 += self.match_axis(self.scale_truth_table.z, &self.scale_speed);
+    }
+
+    pub fn update_gui_transform(
+        &mut self,
+        gui: &gui_version1::GuiVersion1,
+        transform: &mut Transform,
+    ) {
+        // Update the GUI representation of the transform
+        let translation = &mut transform.translation.0;
+        let rotation = &mut transform.rotation.0;
+        let scale = &mut transform.scale.0;
+
+        translation.x = gui.get_x();
+        translation.y = gui.get_y();
+        translation.z = gui.get_z();
+        rotation.x = gui.get_rot_x();
+        rotation.y = gui.get_rot_y();
+        rotation.z = gui.get_rot_z();
+        scale.x = gui.get_scale_x();
+        scale.y = gui.get_scale_y();
+        scale.z = gui.get_scale_z();
     }
 }
 
