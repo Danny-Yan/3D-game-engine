@@ -16,7 +16,7 @@ pub struct GuiVersion1 {
 
 impl GuiVersion1 {
     pub fn show_gui(&mut self, ui: &Context) {
-        egui::Window::new("Streamline CFD")
+        egui::Window::new("Settings")
             // .vscroll(true)
             .default_open(true)
             .max_width(1000.0)

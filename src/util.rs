@@ -38,11 +38,11 @@ impl std::ops::AddAssign for RadWrapper {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct TranslationValue(pub f32);
+pub struct CoordValue(pub f32);
 
-impl Default for TranslationValue {
+impl Default for CoordValue {
     fn default() -> Self {
-        TranslationValue(0.0)
+        CoordValue(0.0)
     }
 }
 #[derive(Debug, Copy, Clone, PartialEq)]

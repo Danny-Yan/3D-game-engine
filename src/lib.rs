@@ -731,6 +731,11 @@ impl ApplicationHandler<State> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[allow(unused_mut)]
         let mut window_attributes = Window::default_attributes();
+        // window_attributes.inner_size = Some(winit::dpi::Size::Logical(
+        //     winit::dpi::LogicalSize::new(800.0, 600.0),
+        // ));
+        window_attributes.maximized = true;
+        window_attributes.title = "Epic window".to_owned();
 
         #[cfg(target_arch = "wasm32")]
         {
