@@ -27,6 +27,7 @@ mod instance;
 use cgmath::prelude::*;
 mod model;
 use model::Vertex;
+mod resources;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -158,7 +159,7 @@ impl State {
 
         // TEXTURE MAKING
         let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, "src/info/happy_tree.png", "happy tree")?;
+            texture::Texture::from_path(&device, &queue, "src/info/happy_tree.png", "happy tree")?;
 
         // Bind group layout: Master bind group with which other bind groups can extend from
         let texture_bind_group_layout =
