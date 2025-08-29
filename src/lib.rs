@@ -23,10 +23,14 @@ mod texture;
 mod transform;
 mod util;
 use util::Cycle;
+mod instance;
 mod vertex_handler;
+use cgmath::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+const ROTATION_SPEED: f32 = 2.0 * std::f32::consts::PI / 60.0;
 
 // A single instance of vertex buffer with indices
 struct VertBufferItem {
@@ -65,6 +69,14 @@ pub struct State {
 
     egui_renderer: gui::EguiRenderer,
     gui_state: gui_version1::GuiVersion1,
+
+    instances: Vec<instance::Instance>,
+    instance_buffer: wgpu::Buffer,
+
+    is_rotation: bool,
+
+    depth_texture: texture::Texture,
+    depth_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -202,6 +214,56 @@ impl State {
             label: Some("diffuse_bind_group"),
         });
 
+        // DEPTH BUFFER TEXTURE
+        let depth_texture =
+            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+
+        // Bind group layout: Master bind group with which other bind groups can extend from
+        let depth_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        // Visible only to fragment shader (NONE, VERTEX, FRAGMENT, COMPUTE)
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+
+                        // A Sampled texture
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Depth,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        // Visible only to fragment shader
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+
+                        // A sampler
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                        count: None,
+                    },
+                ],
+                label: Some("depth_bind_group_layout"),
+            });
+
+        // Bind group: Describes a set of resources and how they are accessed by the shader
+        let depth_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &depth_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&depth_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&depth_texture.sampler),
+                },
+            ],
+            label: Some("depth_bind_group"),
+        });
+
         // TRANSFORM -----------------------------------
         let transform_object = transform::Transform::default();
 
@@ -281,6 +343,41 @@ impl State {
 
         let camera_controller = camera::CameraController::new(0.1);
 
+        let instances = (0..instance::NUM_INSTANCES_PER_ROW)
+            .flat_map(|z| {
+                (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
+                    let position = cgmath::Vector3 {
+                        x: x as f32,
+                        y: 0.0,
+                        z: z as f32,
+                    } - instance::INSTANCE_DISPLACEMENT;
+
+                    let rotation = if position.is_zero() {
+                        // this is needed so an object at (0, 0, 0) won't get scaled to zero
+                        // as Quaternions can affect scale if they're not created correctly
+                        cgmath::Quaternion::from_axis_angle(
+                            cgmath::Vector3::unit_z(),
+                            cgmath::Deg(0.0),
+                        )
+                    } else {
+                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                    };
+
+                    instance::Instance { position, rotation }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let instance_data = instances
+            .iter()
+            .map(instance::Instance::to_raw)
+            .collect::<Vec<_>>();
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+
         // Loading shaders
         // Shader shortcut for this
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -297,6 +394,7 @@ impl State {
                     &texture_bind_group_layout,
                     &camera_bind_group_layout,
                     &transform_bind_group_layout,
+                    &depth_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -310,7 +408,10 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[vertex_handler::Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[
+                    vertex_handler::Vertex::desc(),
+                    instance::InstanceRaw::desc(),
+                ], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -318,7 +419,7 @@ impl State {
             fragment: Some(wgpu::FragmentState {
                 // Fragment is technically optional, needed to store color data to surface
                 module: &shader,
-                entry_point: Some("fs_main"),
+                entry_point: Some("fs_depth"),
                 targets: &[Some(wgpu::ColorTargetState {
                     // Tells Wgpu what color outputs to set up
                     format: config.format,
@@ -341,7 +442,14 @@ impl State {
                 polygon_mode: wgpu::PolygonMode::Fill,
                 ..Default::default()
             },
-            depth_stencil: None,
+            // DEPTH BUFFER
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: texture::Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less, // How pixels are compared in the depth (Less means front to back)
+                stencil: wgpu::StencilState::default(), // Stores a mask or pattern that will cut out certain areas of the drawing
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,                         // How many samples the pipeline will used (Too much work)
                 mask: !0, // Mask specifies which samples should be active (All of them)
@@ -360,7 +468,10 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[vertex_handler::Vertex::desc()], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[
+                    vertex_handler::Vertex::desc(),
+                    instance::InstanceRaw::desc(),
+                ], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -391,7 +502,16 @@ impl State {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None,
+
+            // DEPTH + STENCIL BUFFER put into 1
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: texture::Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+
             multisample: wgpu::MultisampleState {
                 count: 1,                         // How many samples the pipeline will used (Too much work)
                 mask: !0, // Mask specifies which samples should be active (All of them)
@@ -451,6 +571,13 @@ impl State {
 
             egui_renderer,
             gui_state,
+
+            instances,
+            instance_buffer,
+            is_rotation: false,
+
+            depth_texture,
+            depth_bind_group,
         })
     }
 
@@ -462,6 +589,10 @@ impl State {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+
+            // Update depth texture so it always has the same size as the window
+            self.depth_texture =
+                texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
     }
 
@@ -506,6 +637,7 @@ impl State {
             (KeyCode::Escape, true) => event_loop.exit(),
             (KeyCode::Space, true) => self.switch_render()?,
             (KeyCode::KeyY, true) => self.switch_shape()?,
+            (KeyCode::KeyR, true) => self.is_rotation = !self.is_rotation,
 
             // FIX BY CREATING SUPER CONTROLLER and [keycode enum, keybind enum] assign table
             // (PREVENT different controller from being able to access same keybinds)
@@ -580,6 +712,7 @@ impl State {
         self.mouse_position = *position;
     }
 
+    // Tick method
     fn update(&mut self) {
         // Camera
         self.camera_controller
@@ -601,6 +734,28 @@ impl State {
             &self.transform_buffer,
             0,
             bytemuck::cast_slice(&[self.transform_uniform]),
+        );
+
+        // ROTATE INSTANCES
+        for instance in &mut self.instances {
+            let rotation_amount = if self.is_rotation {
+                ROTATION_SPEED
+            } else {
+                0.0
+            };
+            let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(rotation_amount));
+            let current = instance.rotation;
+            instance.rotation = amount * current;
+        }
+        let instance_data = self
+            .instances
+            .iter()
+            .map(instance::Instance::to_raw)
+            .collect::<Vec<_>>();
+        self.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&instance_data),
         );
     }
 
@@ -643,7 +798,15 @@ impl State {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            // Attaches the depth buffer and stencil buffer (Part of the same buffer)
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             occlusion_query_set: None,
             timestamp_writes: None,
         });
@@ -659,6 +822,7 @@ impl State {
         render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
+        render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
 
         // Get front most vertex buffer item
         let front_vertbuf_item = self
@@ -669,7 +833,8 @@ impl State {
         // Load data for vertex buffer
         render_pass.set_vertex_buffer(0, front_vertbuf_item.vertex_buffer.slice(..));
 
-        // Index buffer (CAN ONLY HAVE ONE SET AT A TIME)
+        // NEW!
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.set_index_buffer(
             front_vertbuf_item.index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
@@ -677,7 +842,11 @@ impl State {
 
         // Create "Something" with the given number of vertices and indices
         // Regular draw() ignores indices
-        render_pass.draw_indexed(0..front_vertbuf_item.num_indices, 0, 0..1);
+        render_pass.draw_indexed(
+            0..front_vertbuf_item.num_indices,
+            0,
+            0..self.instances.len() as _,
+        );
 
         // Render pass mutably borrows encoder
         // in order to continue using encoder, this borrow needs to be released

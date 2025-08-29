@@ -101,28 +101,7 @@ impl TransformController {
         // self.update_keyboard_transform(transform);
     }
 
-    pub fn update_keyboard_transform(&mut self, transform: &mut Transform) {
-        let translation = &mut transform.translation.0;
-        let rotation = &mut transform.rotation.0;
-        let scale = &mut transform.scale.0;
-
-        // Compress down somehow
-        rotation.x.0.0 += self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
-        rotation.y.0.0 += self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
-        rotation.z.0.0 += self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
-        translation.x += self.match_axis(self.translation_truth_table.x, &self.translation_speed);
-        translation.y += self.match_axis(self.translation_truth_table.y, &self.translation_speed);
-        translation.z += self.match_axis(self.translation_truth_table.z, &self.translation_speed);
-        scale.x.0 += self.match_axis(self.scale_truth_table.x, &self.scale_speed);
-        scale.y.0 += self.match_axis(self.scale_truth_table.y, &self.scale_speed);
-        scale.z.0 += self.match_axis(self.scale_truth_table.z, &self.scale_speed);
-    }
-
-    pub fn update_gui_transform(
-        &mut self,
-        gui: &gui_version1::GuiVersion1,
-        transform: &mut Transform,
-    ) {
+    fn update_gui_transform(&mut self, gui: &gui_version1::GuiVersion1, transform: &mut Transform) {
         // Update the GUI representation of the transform
         let translation = &mut transform.translation.0;
         let rotation = &mut transform.rotation.0;
@@ -137,6 +116,23 @@ impl TransformController {
         scale.x = gui.get_scale_x();
         scale.y = gui.get_scale_y();
         scale.z = gui.get_scale_z();
+    }
+
+    fn update_keyboard_transform(&mut self, transform: &mut Transform) {
+        let translation = &mut transform.translation.0;
+        let rotation = &mut transform.rotation.0;
+        let scale = &mut transform.scale.0;
+
+        // Compress down somehow
+        rotation.x.0.0 += self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
+        rotation.y.0.0 += self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
+        rotation.z.0.0 += self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
+        translation.x += self.match_axis(self.translation_truth_table.x, &self.translation_speed);
+        translation.y += self.match_axis(self.translation_truth_table.y, &self.translation_speed);
+        translation.z += self.match_axis(self.translation_truth_table.z, &self.translation_speed);
+        scale.x.0 += self.match_axis(self.scale_truth_table.x, &self.scale_speed);
+        scale.y.0 += self.match_axis(self.scale_truth_table.y, &self.scale_speed);
+        scale.z.0 += self.match_axis(self.scale_truth_table.z, &self.scale_speed);
     }
 }
 

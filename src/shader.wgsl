@@ -30,6 +30,12 @@ struct TransformUniform {
 @group(2) @binding(0) // From transform_bind_group
 var<uniform> transform: TransformUniform;
 
+struct InstanceInput {
+    @location(5) model_matrix_0: vec4<f32>,
+    @location(6) model_matrix_1: vec4<f32>,
+    @location(7) model_matrix_2: vec4<f32>,
+    @location(8) model_matrix_3: vec4<f32>,
+};
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -44,13 +50,23 @@ struct VertexOutput {
 @vertex
 fn vs_main(
     model: VertexInput,
+    instance: InstanceInput,
 ) -> VertexOutput {
+    let model_matrix = mat4x4<f32>(
+        instance.model_matrix_0,
+        instance.model_matrix_1,
+        instance.model_matrix_2,
+        instance.model_matrix_3,
+    );
+
     // Triangle
     var out: VertexOutput;
     out.tex_coords  = model.tex_coords;
     out.framebuffer_position = 
         camera.view_proj * 
-        transform.matrix * 
+        transform.matrix * // World space
+        model_matrix *
+        // transform.matrix * // Object space
         vec4<f32>(model.position, 1.0);
     return out;
 }
@@ -78,4 +94,17 @@ var s_diffuse: sampler;
 fn fs_texture(in: VertexOutput) -> @location(0) vec4<f32> {
     return textureSample(t_diffuse, s_diffuse, in.tex_coords);
 }
+
+
+// From diffuse bind group
+@group(3) @binding(0)
+var t_depth: texture_depth_2d;
+@group(3) @binding(1)
+var s_depth: sampler_comparison;
+
+@fragment
+fn fs_depth(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(1, 1, 1, textureSampleCompare(t_depth, s_depth, in.tex_coords, 0.0));
+}
+ 
  
