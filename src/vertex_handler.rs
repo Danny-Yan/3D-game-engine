@@ -106,3 +106,13 @@ pub fn parse_json(path: &str) -> anyhow::Result<Vec<Shape>> {
 //         color: [0.0, 0.0, 1.0],
 //     },
 // ];
+
+// Vertex: Individual vertices
+// Index: Indices that form triangles
+
+// A single instance of vertex buffer with indices
+struct VertBufferItem {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
+}

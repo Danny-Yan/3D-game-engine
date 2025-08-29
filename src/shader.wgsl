@@ -103,8 +103,6 @@ var t_depth: texture_depth_2d;
 var s_depth: sampler_comparison;
 
 @fragment
-fn fs_depth(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_depth_texture(in: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(1, 1, 1, textureSampleCompare(t_depth, s_depth, in.tex_coords, 0.0));
 }
- 
- 

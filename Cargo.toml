@@ -31,6 +31,11 @@ cfg-if = "1.0.3"
 egui-winit = "0.32.1"
 egui = "0.32.1"
 
+[build-dependencies]
+anyhow = "1.0"
+fs_extra = "1.2"
+glob = "0.3"
+
 [dependencies.image]
 version = "0.24"
 default-features = false

@@ -24,20 +24,14 @@ mod transform;
 mod util;
 use util::Cycle;
 mod instance;
-mod vertex_handler;
 use cgmath::prelude::*;
+mod model;
+use model::Vertex;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 const ROTATION_SPEED: f32 = 2.0 * std::f32::consts::PI / 60.0;
-
-// A single instance of vertex buffer with indices
-struct VertBufferItem {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
-}
 
 // This will store the state of our game
 pub struct State {
@@ -51,7 +45,6 @@ pub struct State {
 
     // Rendering pipeline (Used for implementing shaders)
     pipeline_deque: VecDeque<wgpu::RenderPipeline>,
-    vert_buffer_deque: VecDeque<VertBufferItem>,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
 
@@ -408,10 +401,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[
-                    vertex_handler::Vertex::desc(),
-                    instance::InstanceRaw::desc(),
-                ], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[model::ModelVertex::desc(), instance::InstanceRaw::desc()], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -419,7 +409,7 @@ impl State {
             fragment: Some(wgpu::FragmentState {
                 // Fragment is technically optional, needed to store color data to surface
                 module: &shader,
-                entry_point: Some("fs_depth"),
+                entry_point: Some("fs_depth_texture"),
                 targets: &[Some(wgpu::ColorTargetState {
                     // Tells Wgpu what color outputs to set up
                     format: config.format,
@@ -468,10 +458,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"), // Vertex shader entry point (Functions with @vertex and @fragment)
-                buffers: &[
-                    vertex_handler::Vertex::desc(),
-                    instance::InstanceRaw::desc(),
-                ], // Specify what types of vertices are passed onto the vertex shader
+                buffers: &[model::ModelVertex::desc(), instance::InstanceRaw::desc()], // Specify what types of vertices are passed onto the vertex shader
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
 
@@ -523,15 +510,6 @@ impl State {
 
         let pipeline_deque = VecDeque::from([_main_pipeline, _challenge3_pipeline]);
 
-        // Create vertices from json file
-        let vertex_json_container = vertex_handler::parse_json("src/info/vertices_tex.json")?;
-        let vert_buffer_deque = VecDeque::from(
-            vertex_json_container
-                .into_iter()
-                .map(|shape| State::create_buffer_item(&device, &shape.vertices, &shape.indices))
-                .collect::<Vec<_>>(),
-        );
-
         let egui_renderer = gui::EguiRenderer::new(
             &device,       // wgpu Device
             config.format, // TextureFormat
@@ -551,7 +529,6 @@ impl State {
             is_surface_configured: false,
             mouse_position: PhysicalPosition::default(),
             pipeline_deque,
-            vert_buffer_deque,
             window,
 
             diffuse_bind_group,
@@ -593,32 +570,6 @@ impl State {
             // Update depth texture so it always has the same size as the window
             self.depth_texture =
                 texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
-        }
-    }
-
-    fn create_buffer_item(
-        device: &wgpu::Device,
-        vertices: &[vertex_handler::Vertex],
-        indices: &[u16],
-    ) -> VertBufferItem {
-        // Vertex buffer initialistion
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(vertices), // Cast to &[u8]
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let num_indices = indices.len() as u32;
-
-        VertBufferItem {
-            vertex_buffer,
-            index_buffer,
-            num_indices,
         }
     }
 
@@ -699,7 +650,7 @@ impl State {
     }
 
     fn switch_shape(&mut self) -> anyhow::Result<()> {
-        self.vert_buffer_deque.cycle()?;
+        // self.vert_buffer_deque.cycle()?;
         Ok(())
     }
 
@@ -823,30 +774,6 @@ impl State {
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
-
-        // Get front most vertex buffer item
-        let front_vertbuf_item = self
-            .vert_buffer_deque
-            .front()
-            .ok_or(wgpu::SurfaceError::OutOfMemory)?;
-
-        // Load data for vertex buffer
-        render_pass.set_vertex_buffer(0, front_vertbuf_item.vertex_buffer.slice(..));
-
-        // NEW!
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.set_index_buffer(
-            front_vertbuf_item.index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-
-        // Create "Something" with the given number of vertices and indices
-        // Regular draw() ignores indices
-        render_pass.draw_indexed(
-            0..front_vertbuf_item.num_indices,
-            0,
-            0..self.instances.len() as _,
-        );
 
         // Render pass mutably borrows encoder
         // in order to continue using encoder, this borrow needs to be released
