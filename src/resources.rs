@@ -61,7 +61,7 @@ pub async fn load_texture(
     texture::Texture::from_bytes(device, queue, &data, file_name)
 }
 
-pub async fn load_model(
+pub async fn load_model_obj(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -171,4 +171,14 @@ pub async fn load_model(
         .collect::<Vec<_>>();
 
     Ok(model::Model { meshes, materials })
+}
+
+#[allow(dead_code, unused_variables)]
+pub async fn load_model_fbx(
+    file_name: &str,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    layout: &wgpu::BindGroupLayout,
+) -> anyhow::Result<model::Model> {
+    todo!("Implement FBX model loading")
 }

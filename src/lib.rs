@@ -26,6 +26,7 @@ use util::Cycle;
 mod instance;
 use cgmath::prelude::*;
 mod model;
+use model::DrawModel;
 use model::Vertex;
 mod resources;
 
@@ -60,6 +61,8 @@ pub struct State {
     transform_buffer: wgpu::Buffer,
     transform_bind_group: wgpu::BindGroup,
     transform_controller: transform::TransformController,
+
+    obj_model: model::Model,
 
     egui_renderer: gui::EguiRenderer,
     gui_state: gui_version1::GuiVersion1,
@@ -337,14 +340,16 @@ impl State {
 
         let camera_controller = camera::CameraController::new(0.1);
 
+        const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..instance::NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
                 (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let position = cgmath::Vector3 {
-                        x: x as f32,
-                        y: 0.0,
-                        z: z as f32,
-                    } - instance::INSTANCE_DISPLACEMENT;
+                    let x =
+                        SPACE_BETWEEN * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                    let z =
+                        SPACE_BETWEEN * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+
+                    let position = cgmath::Vector3 { x, y: 0.0, z };
 
                     let rotation = if position.is_zero() {
                         // this is needed so an object at (0, 0, 0) won't get scaled to zero
@@ -379,6 +384,13 @@ impl State {
         //     source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         // });
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+
+        // Get Object Model
+        log::warn!("Load model");
+        let obj_model =
+            resources::load_model_obj("cube.obj", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
 
         // Pipeline layout
         let render_pipeline_layout =
@@ -546,6 +558,8 @@ impl State {
             transform_uniform,
             transform_bind_group,
             transform_controller,
+
+            obj_model,
 
             egui_renderer,
             gui_state,
@@ -763,6 +777,7 @@ impl State {
             timestamp_writes: None,
         });
 
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         // Load render pipeline
         render_pass.set_pipeline(
             self.pipeline_deque
@@ -775,6 +790,12 @@ impl State {
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
+
+        render_pass.draw_model_instanced(
+            &self.obj_model,
+            0..self.instances.len() as u32,
+            &self.camera_bind_group,
+        );
 
         // Render pass mutably borrows encoder
         // in order to continue using encoder, this borrow needs to be released
