@@ -359,7 +359,7 @@ impl State {
                             cgmath::Deg(0.0),
                         )
                     } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(0.0))
                     };
 
                     instance::Instance { position, rotation }
@@ -386,11 +386,22 @@ impl State {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
         // Get Object Model
-        log::warn!("Load model");
-        let obj_model =
-            resources::load_model_obj("cube.obj", &device, &queue, &texture_bind_group_layout)
-                .await
-                .unwrap();
+        let obj_model: model::Model;
+        let loaded_content = resources::load_model_obj(
+            "spacecraft_masterpiece2.obj",
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+        )
+        .await;
+
+        match loaded_content {
+            Ok(model) => obj_model = model,
+            Err(e) => {
+                log::error!("Failed to load model: {}", e);
+                return Err(e);
+            }
+        }
 
         // Pipeline layout
         let render_pipeline_layout =
