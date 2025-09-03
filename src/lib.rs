@@ -392,13 +392,9 @@ impl State {
 
         // Get Object Model
         let obj_model: model::Model;
-        let loaded_content = resources::load_model_obj(
-            "spacecraft_masterpiece2.obj",
-            &device,
-            &queue,
-            &texture_bind_group_layout,
-        )
-        .await;
+        let loaded_content =
+            resources::load_model_obj("cube.obj", &device, &queue, &texture_bind_group_layout)
+                .await;
 
         match loaded_content {
             Ok(model) => obj_model = model,
