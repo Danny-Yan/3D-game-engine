@@ -15,7 +15,6 @@ use std::sync::Arc;
 
 mod camera;
 mod gui;
-mod gui_version1;
 mod input_controller;
 mod keybind;
 use keybind::{CameraKeybind, KeybindHandler, TransformKeybind};
@@ -28,6 +27,7 @@ use cgmath::prelude::*;
 mod model;
 use model::DrawModel;
 use model::Vertex;
+mod gui_version1;
 mod resources;
 
 #[cfg(target_arch = "wasm32")]
@@ -349,6 +349,7 @@ impl State {
                     let z =
                         SPACE_BETWEEN * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
+                    let name = format!("Instance_{}_{}", x, z);
                     let position = cgmath::Vector3 { x, y: 0.0, z };
 
                     let rotation = if position.is_zero() {
@@ -362,7 +363,11 @@ impl State {
                         cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(0.0))
                     };
 
-                    instance::Instance { position, rotation }
+                    instance::Instance {
+                        name,
+                        position,
+                        rotation,
+                    }
                 })
             })
             .collect::<Vec<_>>();
@@ -825,7 +830,7 @@ impl State {
             &self.window,
             &view,
             screen_descriptor,
-            &mut |ui| self.gui_state.show_gui(ui),
+            &mut |ui| self.gui_state.show_gui(ui, &mut self.instances),
         );
 
         // Submit to GPUs render queue

@@ -31,8 +31,8 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
             .join(file_name);
         std::fs::read_to_string(path)?
     };
-    println!("Loaded text file: {}", file_name);
-    println!("Loaded text file: {}", txt);
+    // println!("Loaded text file: {}", file_name);
+    // println!("Loaded text file: {}", txt);
     Ok(txt)
 }
 
@@ -48,7 +48,7 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
             .join("res")
             .join(file_name);
 
-        println!("Loading binary file: {}", file_name);
+        // println!("Loading binary file: {}", file_name);
         std::fs::read(path)?
     };
 

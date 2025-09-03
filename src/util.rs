@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use serde::de::value;
+
 pub trait Cycle {
     fn cycle(&mut self) -> anyhow::Result<()>;
 }
@@ -12,16 +14,26 @@ impl<T> Cycle for VecDeque<T> {
     }
 }
 
+pub trait FloatWrapper {
+    fn new(value: f32) -> Self;
+    fn get_inside(&self) -> f32;
+    fn get_mut(&mut self) -> &mut f32;
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RadWrapper(pub cgmath::Rad<f32>);
 
-impl RadWrapper {
-    pub fn new(value: f32) -> Self {
+impl FloatWrapper for RadWrapper {
+    fn new(value: f32) -> Self {
         RadWrapper(cgmath::Rad(value))
     }
 
-    pub fn get_inside(&self) -> f32 {
+    fn get_inside(&self) -> f32 {
         self.0.0
+    }
+
+    fn get_mut(&mut self) -> &mut f32 {
+        &mut self.0.0
     }
 }
 
@@ -63,6 +75,19 @@ impl std::ops::AddAssign for ScaleValue {
 impl std::ops::MulAssign for ScaleValue {
     fn mul_assign(&mut self, other: Self) {
         self.0 *= other.0;
+    }
+}
+
+impl FloatWrapper for ScaleValue {
+    fn new(value: f32) -> Self {
+        ScaleValue(value)
+    }
+
+    fn get_inside(&self) -> f32 {
+        self.0
+    }
+    fn get_mut(&mut self) -> &mut f32 {
+        &mut self.0
     }
 }
 

@@ -1,3 +1,5 @@
+use cgmath::prelude::*;
+
 pub const NUM_INSTANCES_PER_ROW: u32 = 1;
 pub const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(
     NUM_INSTANCES_PER_ROW as f32 * 0.5,
@@ -5,9 +7,24 @@ pub const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(
     NUM_INSTANCES_PER_ROW as f32 * 0.5,
 );
 
+#[derive(Debug, Clone)]
 pub struct Instance {
+    pub name: String,
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
+}
+
+impl Default for Instance {
+    fn default() -> Self {
+        Instance {
+            name: String::from("Instance"),
+            position: cgmath::Vector3::new(0.0, 0.0, 0.0),
+            rotation: cgmath::Quaternion::from_axis_angle(
+                cgmath::Vector3::unit_z(),
+                cgmath::Deg(0.0),
+            ),
+        }
+    }
 }
 
 #[repr(C)]
