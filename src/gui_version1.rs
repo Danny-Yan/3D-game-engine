@@ -63,7 +63,7 @@ impl GuiVersion1 {
                 });
             });
 
-        egui::Window::new("Settings")
+        egui::Window::new("Global Settings")
             // .vscroll(true)
             .default_open(true)
             .max_width(1000.0)
@@ -76,7 +76,6 @@ impl GuiVersion1 {
                 // if ui.add(egui::Button::new("Click me")).clicked() {
                 //     println!("PRESSED")
                 // }
-                ui.label("Slider");
                 ui.add(egui::Slider::new(&mut self.x, -4.0..=4.0).text("x"));
                 ui.add(egui::Slider::new(&mut self.y, -4.0..=4.0).text("y"));
                 ui.add(egui::Slider::new(&mut self.z, -4.0..=4.0).text("z"));

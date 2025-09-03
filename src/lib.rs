@@ -340,14 +340,13 @@ impl State {
 
         let camera_controller = camera::CameraController::new(0.1);
 
-        const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..instance::NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
                 (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let x =
-                        SPACE_BETWEEN * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                    let z =
-                        SPACE_BETWEEN * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                    let x = instance::SPACE_BETWEEN
+                        * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                    let z = instance::SPACE_BETWEEN
+                        * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
                     let name = format!("Instance_{}_{}", x, z);
                     let position = cgmath::Vector3 { x, y: 0.0, z };
@@ -392,9 +391,13 @@ impl State {
 
         // Get Object Model
         let obj_model: model::Model;
-        let loaded_content =
-            resources::load_model_obj("cube.obj", &device, &queue, &texture_bind_group_layout)
-                .await;
+        let loaded_content = resources::load_model_obj(
+            "chinese_war_ship.obj",
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+        )
+        .await;
 
         match loaded_content {
             Ok(model) => obj_model = model,
