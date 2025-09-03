@@ -29,36 +29,38 @@ impl GuiVersion1 {
             .resizable(true)
             .anchor(Align2::RIGHT_TOP, [0.0, 0.0])
             .show(ctx, |ui| {
-                ui.label("Instances");
-                for instance in instances {
-                    egui::CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
-                        let position: &mut cgmath::Vector3<f32> = &mut instance.position;
-                        let rotation: &mut cgmath::Euler<cgmath::Rad<f32>> =
-                            &mut cgmath::Euler::from(instance.rotation);
+                egui::CollapsingHeader::new("Instances").show(ui, |ui| {
+                    for instance in instances {
+                        egui::CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
+                            let position: &mut cgmath::Vector3<f32> = &mut instance.position;
+                            let rotation: &mut cgmath::Euler<cgmath::Rad<f32>> =
+                                &mut cgmath::Euler::from(instance.rotation);
 
-                        ui.label("Settings");
-                        ui.add(egui::Slider::new(&mut position.x, -200.0..=200.0).text("x"));
-                        ui.add(egui::Slider::new(&mut position.y, -200.0..=200.0).text("y"));
-                        ui.add(egui::Slider::new(&mut position.z, -200.0..=200.0).text("z"));
-                        ui.add(egui::Slider::new(&mut rotation.x.0, -PI..=PI).text("Pitch"));
-                        ui.add(
-                            egui::Slider::new(&mut rotation.y.0, -PI / 2.0..=PI / 2.0).text("Roll"),
-                        );
-                        ui.add(egui::Slider::new(&mut rotation.z.0, -PI..=PI).text("Yaw"));
-                        // ui.add(
-                        //     egui::Slider::new(self.scale_x.get_mut(), -4.0..=4.0).text("scale x"),
-                        // );
-                        // ui.add(
-                        //     egui::Slider::new(self.scale_y.get_mut(), -4.0..=4.0).text("scale y"),
-                        // );
-                        // ui.add(
-                        //     egui::Slider::new(self.scale_z.get_mut(), -4.0..=4.0).text("scale z"),
-                        // );
-                        ui.end_row();
-                        instance.rotation = cgmath::Quaternion::from(*rotation);
-                    });
-                }
-                ui.end_row();
+                            ui.label("Settings");
+                            ui.add(egui::Slider::new(&mut position.x, -200.0..=200.0).text("x"));
+                            ui.add(egui::Slider::new(&mut position.y, -200.0..=200.0).text("y"));
+                            ui.add(egui::Slider::new(&mut position.z, -200.0..=200.0).text("z"));
+                            ui.add(egui::Slider::new(&mut rotation.x.0, -PI..=PI).text("Pitch"));
+                            ui.add(
+                                egui::Slider::new(&mut rotation.y.0, -PI / 2.0..=PI / 2.0)
+                                    .text("Roll"),
+                            );
+                            ui.add(egui::Slider::new(&mut rotation.z.0, -PI..=PI).text("Yaw"));
+                            // ui.add(
+                            //     egui::Slider::new(self.scale_x.get_mut(), -4.0..=4.0).text("scale x"),
+                            // );
+                            // ui.add(
+                            //     egui::Slider::new(self.scale_y.get_mut(), -4.0..=4.0).text("scale y"),
+                            // );
+                            // ui.add(
+                            //     egui::Slider::new(self.scale_z.get_mut(), -4.0..=4.0).text("scale z"),
+                            // );
+                            ui.end_row();
+                            instance.rotation = cgmath::Quaternion::from(*rotation);
+                        });
+                    }
+                    ui.end_row();
+                });
             });
 
         egui::Window::new("Settings")
