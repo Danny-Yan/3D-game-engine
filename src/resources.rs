@@ -184,3 +184,26 @@ pub async fn load_model_fbx(
     let mut obj_reader = BufReader::new(obj_cursor);
     todo!("Implement FBX model loading")
 }
+
+pub struct ResourcesLoader<'a> {
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub layout: &'a wgpu::BindGroupLayout,
+}
+
+impl ResourcesLoader<'_> {
+    pub async fn load_model_obj(&self, file_name: &str) -> anyhow::Result<model::Model> {
+        match load_model_obj(file_name, self.device, self.queue, self.layout).await {
+            Ok(model) => Ok(model),
+            Err(e) => Err(anyhow::anyhow!("Failed to load OBJ model: {}", e)),
+        }
+    }
+
+    pub async fn load_models_obj(&self, file_names: &[&str]) -> Vec<anyhow::Result<model::Model>> {
+        let mut models = Vec::new();
+        for &file_name in file_names {
+            models.push(self.load_model_obj(file_name).await);
+        }
+        models
+    }
+}

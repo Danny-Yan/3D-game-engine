@@ -1,25 +1,34 @@
 use crate::instance;
-use crate::util;
-use crate::util::FloatWrapper;
-use egui::{Align2, Context};
+use crate::util::{FloatWrapper, RadWrapper, ScaleValue};
+use cgmath::{Euler, Quaternion, Rad, Vector3};
+use egui::emath::Numeric;
+use egui::{Align2, CollapsingHeader, Context, Slider, Window};
 use std::f32::consts::PI;
+use std::ops::RangeInclusive;
 
-#[derive(Default)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct GuiVersion1 {
     x: f32,
     y: f32,
     z: f32,
-    rot_x: util::RadWrapper,
-    rot_y: util::RadWrapper,
-    rot_z: util::RadWrapper,
-    scale_x: util::ScaleValue,
-    scale_y: util::ScaleValue,
-    scale_z: util::ScaleValue,
+    rot_x: RadWrapper,
+    rot_y: RadWrapper,
+    rot_z: RadWrapper,
+    scale_x: ScaleValue,
+    scale_y: ScaleValue,
+    scale_z: ScaleValue,
+    drag_value_speed: f64,
 }
 
 impl GuiVersion1 {
+    pub fn new() -> Self {
+        Self {
+            drag_value_speed: 0.001, // Precision
+            ..Default::default()
+        }
+    }
     pub fn show_gui(&mut self, ctx: &Context, instances: &mut Vec<instance::Instance>) {
-        egui::Window::new("Instances")
+        Window::new("Instances")
             // .vscroll(true)
             .default_open(true)
             .max_width(1000.0)
@@ -29,41 +38,29 @@ impl GuiVersion1 {
             .resizable(true)
             .anchor(Align2::RIGHT_TOP, [0.0, 0.0])
             .show(ctx, |ui| {
-                egui::CollapsingHeader::new("Instances").show(ui, |ui| {
+                CollapsingHeader::new("Instances").show(ui, |ui| {
                     for instance in instances {
-                        egui::CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
-                            let position: &mut cgmath::Vector3<f32> = &mut instance.position;
-                            let rotation: &mut cgmath::Euler<cgmath::Rad<f32>> =
-                                &mut cgmath::Euler::from(instance.rotation);
+                        CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
+                            let position: &mut Vector3<f32> = &mut instance.position;
+                            let rotation: &mut Euler<Rad<f32>> =
+                                &mut Euler::from(instance.rotation);
 
                             ui.label("Settings");
-                            ui.add(egui::Slider::new(&mut position.x, -200.0..=200.0).text("x"));
-                            ui.add(egui::Slider::new(&mut position.y, -200.0..=200.0).text("y"));
-                            ui.add(egui::Slider::new(&mut position.z, -200.0..=200.0).text("z"));
-                            ui.add(egui::Slider::new(&mut rotation.x.0, -PI..=PI).text("Pitch"));
-                            ui.add(
-                                egui::Slider::new(&mut rotation.y.0, -PI / 2.0..=PI / 2.0)
-                                    .text("Roll"),
-                            );
-                            ui.add(egui::Slider::new(&mut rotation.z.0, -PI..=PI).text("Yaw"));
-                            // ui.add(
-                            //     egui::Slider::new(self.scale_x.get_mut(), -4.0..=4.0).text("scale x"),
-                            // );
-                            // ui.add(
-                            //     egui::Slider::new(self.scale_y.get_mut(), -4.0..=4.0).text("scale y"),
-                            // );
-                            // ui.add(
-                            //     egui::Slider::new(self.scale_z.get_mut(), -4.0..=4.0).text("scale z"),
-                            // );
+                            self.create_slider(ui, "x", -200.0..=200.0, &mut position.x);
+                            self.create_slider(ui, "y", -200.0..=200.0, &mut position.y);
+                            self.create_slider(ui, "z", -200.0..=200.0, &mut position.z);
+                            self.create_slider(ui, "Roll", -PI..=PI, &mut rotation.x.0);
+                            self.create_slider(ui, "Yaw", -PI / 2.0..=PI / 2.0, &mut rotation.y.0);
+                            self.create_slider(ui, "Pitch", -PI..=PI, &mut rotation.z.0);
                             ui.end_row();
-                            instance.rotation = cgmath::Quaternion::from(*rotation);
+                            instance.rotation = Quaternion::from(*rotation);
                         });
                     }
                     ui.end_row();
                 });
             });
 
-        egui::Window::new("Global Settings")
+        Window::new("Global Settings")
             // .vscroll(true)
             .default_open(true)
             .max_width(1000.0)
@@ -73,20 +70,31 @@ impl GuiVersion1 {
             .resizable(true)
             .anchor(Align2::LEFT_TOP, [0.0, 0.0])
             .show(ctx, |ui| {
-                // if ui.add(egui::Button::new("Click me")).clicked() {
-                //     println!("PRESSED")
-                // }
-                ui.add(egui::Slider::new(&mut self.x, -4.0..=4.0).text("x"));
-                ui.add(egui::Slider::new(&mut self.y, -4.0..=4.0).text("y"));
-                ui.add(egui::Slider::new(&mut self.z, -4.0..=4.0).text("z"));
-                ui.add(egui::Slider::new(self.rot_x.get_mut(), -4.0..=4.0).text("Pitch"));
-                ui.add(egui::Slider::new(self.rot_y.get_mut(), -4.0..=4.0).text("Roll"));
-                ui.add(egui::Slider::new(self.rot_z.get_mut(), -4.0..=4.0).text("Yaw"));
-                ui.add(egui::Slider::new(self.scale_x.get_mut(), -4.0..=4.0).text("scale x"));
-                ui.add(egui::Slider::new(self.scale_y.get_mut(), -4.0..=4.0).text("scale y"));
-                ui.add(egui::Slider::new(self.scale_z.get_mut(), -4.0..=4.0).text("scale z"));
+                self.create_slider(ui, "x", -4.0..=4.0, &mut self.x);
+                self.create_slider(ui, "y", -4.0..=4.0, &mut self.y);
+                self.create_slider(ui, "z", -4.0..=4.0, &mut self.z);
+                self.create_slider(ui, "Pitch", -4.0..=4.0, self.rot_x.get_mut());
+                self.create_slider(ui, "Roll", -4.0..=4.0, self.rot_y.get_mut());
+                self.create_slider(ui, "Yaw", -4.0..=4.0, self.rot_z.get_mut());
+                self.create_slider(ui, "scale x", -4.0..=4.0, self.scale_x.get_mut());
+                self.create_slider(ui, "scale y", -4.0..=4.0, self.scale_y.get_mut());
+                self.create_slider(ui, "scale z", -4.0..=4.0, self.scale_z.get_mut());
                 ui.end_row();
             });
+    }
+
+    fn create_slider<Num: Numeric>(
+        self,
+        ui: &mut egui::Ui,
+        label: &str,
+        range: RangeInclusive<Num>,
+        value: &mut Num,
+    ) {
+        ui.add(
+            Slider::new(value, range)
+                .text(label)
+                .drag_value_speed(self.drag_value_speed),
+        );
     }
 
     pub fn get_x(&self) -> f32 {
@@ -101,27 +109,27 @@ impl GuiVersion1 {
         self.z
     }
 
-    pub fn get_rot_x(&self) -> util::RadWrapper {
+    pub fn get_rot_x(&self) -> RadWrapper {
         self.rot_x
     }
 
-    pub fn get_rot_y(&self) -> util::RadWrapper {
+    pub fn get_rot_y(&self) -> RadWrapper {
         self.rot_y
     }
 
-    pub fn get_rot_z(&self) -> util::RadWrapper {
+    pub fn get_rot_z(&self) -> RadWrapper {
         self.rot_z
     }
 
-    pub fn get_scale_x(&self) -> util::ScaleValue {
+    pub fn get_scale_x(&self) -> ScaleValue {
         self.scale_x
     }
 
-    pub fn get_scale_y(&self) -> util::ScaleValue {
+    pub fn get_scale_y(&self) -> ScaleValue {
         self.scale_y
     }
 
-    pub fn get_scale_z(&self) -> util::ScaleValue {
+    pub fn get_scale_z(&self) -> ScaleValue {
         self.scale_z
     }
 }

@@ -389,23 +389,15 @@ impl State {
         // });
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
+        let resources_loader = resources::ResourcesLoader {
+            device: &device,
+            queue: &queue,
+            layout: &texture_bind_group_layout,
+        };
         // Get Object Model
-        let obj_model: model::Model;
-        let loaded_content = resources::load_model_obj(
-            "chinese_war_ship.obj",
-            &device,
-            &queue,
-            &texture_bind_group_layout,
-        )
-        .await;
-
-        match loaded_content {
-            Ok(model) => obj_model = model,
-            Err(e) => {
-                log::error!("Failed to load model: {}", e);
-                return Err(e);
-            }
-        }
+        let obj_model = resources_loader
+            .load_model_obj("chinese_war_ship.obj")
+            .await?;
 
         // Pipeline layout
         let render_pipeline_layout =
@@ -547,7 +539,7 @@ impl State {
         );
 
         // UI variables stored here
-        let gui_state = gui_version1::GuiVersion1::default();
+        let gui_state = gui_version1::GuiVersion1::new();
 
         Ok(Self {
             surface,
@@ -680,7 +672,6 @@ impl State {
     }
 
     fn switch_shape(&mut self) -> anyhow::Result<()> {
-        // self.vert_buffer_deque.cycle()?;
         Ok(())
     }
 
