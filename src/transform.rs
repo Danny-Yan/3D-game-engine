@@ -107,15 +107,15 @@ impl TransformController {
         let rotation = &mut transform.rotation.0;
         let scale = &mut transform.scale.0;
 
-        translation.x = gui.get_x();
-        translation.y = gui.get_y();
-        translation.z = gui.get_z();
-        rotation.x = gui.get_rot_x();
-        rotation.y = gui.get_rot_y();
-        rotation.z = gui.get_rot_z();
-        scale.x = gui.get_scale_x();
-        scale.y = gui.get_scale_y();
-        scale.z = gui.get_scale_z();
+        translation.x = gui.x;
+        translation.y = gui.y;
+        translation.z = gui.z;
+        rotation.x = gui.rot_x;
+        rotation.y = gui.rot_y;
+        rotation.z = gui.rot_z;
+        scale.x = gui.scale_x;
+        scale.y = gui.scale_y;
+        scale.z = gui.scale_z;
     }
 
     fn update_keyboard_transform(&mut self, transform: &mut Transform) {

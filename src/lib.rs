@@ -820,7 +820,7 @@ impl State {
             &self.window,
             &view,
             screen_descriptor,
-            &mut |ui| self.gui_state.show_gui(ui, &mut self.instances),
+            &mut |ui| self.gui_state.show_gui(ui, self),
         );
 
         // Submit to GPUs render queue
