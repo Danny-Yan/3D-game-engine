@@ -65,7 +65,6 @@ pub struct State {
     obj_model: model::Model,
 
     egui_renderer: gui::EguiRenderer,
-    gui_options: gui_version1::GuiOptions,
     instances: Vec<instance::Instance>,
     instance_buffer: wgpu::Buffer,
 
@@ -537,9 +536,6 @@ impl State {
             &window,       // winit Window
         );
 
-        // UI variables stored here
-        let gui_options = gui_version1::GuiOptions::default();
-
         Ok(Self {
             surface,
             device,
@@ -568,8 +564,6 @@ impl State {
             obj_model,
 
             egui_renderer,
-            gui_options,
-
             instances,
             instance_buffer,
             is_rotation: false,
@@ -816,9 +810,17 @@ impl State {
             &self.window,
             &view,
             screen_descriptor,
-            &mut |ui| gui_version1::show_gui(ui, &mut self.gui_options, self), // self includes egui_renderer ;-;
+            &mut |ui| {
+                gui_version1::show_gui(
+                    ui,
+                    &mut gui_version1::GuiOptions::default(),
+                    &mut gui_version1::GuiState {
+                        instances: &mut self.instances,
+                        transform_object: &mut self.transform_object,
+                    },
+                )
+            },
         );
-
         // Submit to GPUs render queue
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));

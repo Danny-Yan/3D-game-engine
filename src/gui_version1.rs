@@ -1,5 +1,5 @@
-use crate as wgpu_engine;
-use crate::util::{FloatWrapper, RadWrapper, ScaleValue};
+use crate::util::FloatWrapper;
+use crate::{instance, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
@@ -8,8 +8,9 @@ use std::ops::RangeInclusive;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GuiOptions {
-    drag_value_speed: f64,
+    pub drag_value_speed: f64,
 }
+
 impl Default for GuiOptions {
     fn default() -> Self {
         Self {
@@ -34,7 +35,17 @@ impl GuiOptions {
     }
 }
 
-pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut wgpu_engine::State) {
+pub struct GuiState<'a> {
+    pub instances: &'a mut Vec<instance::Instance>,
+    pub transform_object: &'a mut transform::Transform,
+}
+
+pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState) {
+    show_instance_menu(ctx, opt, state);
+    show_global_settings_menu(ctx, opt, state);
+}
+
+fn show_instance_menu(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState) {
     Window::new("Instances")
         // .vscroll(true)
         .default_open(true)
@@ -46,7 +57,7 @@ pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut wgpu_engine::St
         .anchor(Align2::RIGHT_TOP, [0.0, 0.0])
         .show(ctx, |ui| {
             CollapsingHeader::new("Instances").show(ui, |ui| {
-                for instance in &mut state.instances {
+                for instance in &mut *state.instances {
                     CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
                         let position: &mut Vector3<f32> = &mut instance.position;
                         let rotation: &mut Euler<Rad<f32>> = &mut Euler::from(instance.rotation);
@@ -65,7 +76,9 @@ pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut wgpu_engine::St
                 ui.end_row();
             });
         });
+}
 
+fn show_global_settings_menu(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState) {
     Window::new("Global Settings")
         // .vscroll(true)
         .default_open(true)
@@ -82,12 +95,12 @@ pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut wgpu_engine::St
             opt.create_slider(ui, "x", -4.0..=4.0, &mut translation.x);
             opt.create_slider(ui, "y", -4.0..=4.0, &mut translation.y);
             opt.create_slider(ui, "z", -4.0..=4.0, &mut translation.z);
-            opt.create_slider(ui, "Pitch", -PI..=PI, &mut rotation.x.get_mut());
-            opt.create_slider(ui, "Roll", -PI..=PI, &mut rotation.y.get_mut());
-            opt.create_slider(ui, "Yaw", -PI..=PI, &mut rotation.z.get_mut());
-            opt.create_slider(ui, "scale x", -4.0..=4.0, &mut scale.x.get_mut());
-            opt.create_slider(ui, "scale y", -4.0..=4.0, &mut scale.y.get_mut());
-            opt.create_slider(ui, "scale z", -4.0..=4.0, &mut scale.z.get_mut());
+            opt.create_slider(ui, "Pitch", -PI..=PI, rotation.x.get_mut());
+            opt.create_slider(ui, "Roll", -PI..=PI, rotation.y.get_mut());
+            opt.create_slider(ui, "Yaw", -PI..=PI, rotation.z.get_mut());
+            opt.create_slider(ui, "scale x", -4.0..=4.0, scale.x.get_mut());
+            opt.create_slider(ui, "scale y", -4.0..=4.0, scale.y.get_mut());
+            opt.create_slider(ui, "scale z", -4.0..=4.0, scale.z.get_mut());
             ui.end_row();
         });
 }
