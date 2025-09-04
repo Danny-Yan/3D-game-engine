@@ -65,8 +65,7 @@ pub struct State {
     obj_model: model::Model,
 
     egui_renderer: gui::EguiRenderer,
-    gui_state: gui_version1::GuiVersion1,
-
+    gui_options: gui_version1::GuiOptions,
     instances: Vec<instance::Instance>,
     instance_buffer: wgpu::Buffer,
 
@@ -539,7 +538,7 @@ impl State {
         );
 
         // UI variables stored here
-        let gui_state = gui_version1::GuiVersion1::new();
+        let gui_options = gui_version1::GuiOptions::default();
 
         Ok(Self {
             surface,
@@ -569,7 +568,7 @@ impl State {
             obj_model,
 
             egui_renderer,
-            gui_state,
+            gui_options,
 
             instances,
             instance_buffer,
@@ -697,9 +696,6 @@ impl State {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
 
-        // Transform
-        self.transform_controller
-            .update_transform(&self.gui_state, &mut self.transform_object);
         self.transform_uniform.update_matrix(&self.transform_object);
 
         self.queue.write_buffer(
@@ -820,7 +816,7 @@ impl State {
             &self.window,
             &view,
             screen_descriptor,
-            &mut |ui| self.gui_state.show_gui(ui, self),
+            &mut |ui| gui_version1::show_gui(ui, &mut self.gui_options, self), // self includes egui_renderer ;-;
         );
 
         // Submit to GPUs render queue

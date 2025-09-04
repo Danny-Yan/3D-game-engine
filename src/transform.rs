@@ -7,9 +7,9 @@ use cgmath::Matrix4;
 
 #[derive(Default)]
 pub struct Transform {
-    rotation: Vector3Wrapper<RadWrapper>,
-    translation: Vector3Wrapper<f32>, // WHY DOES THIS NOT WORK
-    scale: Vector3Wrapper<ScaleValue>,
+    pub rotation: Vector3Wrapper<RadWrapper>,
+    pub translation: Vector3Wrapper<f32>, // WHY DOES THIS NOT WORK
+    pub scale: Vector3Wrapper<ScaleValue>,
 }
 
 impl Transform {
@@ -93,29 +93,6 @@ impl TransformController {
             true => *value,
             false => 0.0,
         }
-    }
-
-    pub fn update_transform(&mut self, gui: &gui_version1::GuiVersion1, transform: &mut Transform) {
-        // Update the transform based on the current input
-        self.update_gui_transform(gui, transform);
-        // self.update_keyboard_transform(transform);
-    }
-
-    fn update_gui_transform(&mut self, gui: &gui_version1::GuiVersion1, transform: &mut Transform) {
-        // Update the GUI representation of the transform
-        let translation = &mut transform.translation.0;
-        let rotation = &mut transform.rotation.0;
-        let scale = &mut transform.scale.0;
-
-        translation.x = gui.x;
-        translation.y = gui.y;
-        translation.z = gui.z;
-        rotation.x = gui.rot_x;
-        rotation.y = gui.rot_y;
-        rotation.z = gui.rot_z;
-        scale.x = gui.scale_x;
-        scale.y = gui.scale_y;
-        scale.z = gui.scale_z;
     }
 
     fn update_keyboard_transform(&mut self, transform: &mut Transform) {
