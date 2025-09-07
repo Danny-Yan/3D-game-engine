@@ -817,6 +817,7 @@ impl State {
                     &mut gui_version1::GuiState {
                         instances: &mut self.instances,
                         transform_object: &mut self.transform_object,
+                        window: &self.window,
                     },
                 )
             },
