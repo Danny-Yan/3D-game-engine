@@ -187,19 +187,13 @@ pub async fn load_model_fbx(
     todo!("Implement FBX model loading")
 }
 
-pub struct ResourcesLoader<'a> {
+pub struct ModelsLoader<'a> {
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,
     pub layout: &'a wgpu::BindGroupLayout,
 }
 
-pub struct ModelInstances {
-    pub instances: Vec<instance::Instance>,
-    pub model: model::Model,
-    pub instance_buffer: wgpu::Buffer,
-}
-
-impl ResourcesLoader<'_> {
+impl ModelsLoader<'_> {
     pub async fn load_model_obj(&self, file_name: &str) -> anyhow::Result<model::Model> {
         match load_model_obj(file_name, self.device, self.queue, self.layout).await {
             Ok(model) => Ok(model),
@@ -219,7 +213,7 @@ impl ResourcesLoader<'_> {
         &self,
         file_name: &str,
         positions: Vec<cgmath::Vector3<f32>>,
-    ) -> anyhow::Result<ModelInstances> {
+    ) -> anyhow::Result<model::ModelInstances> {
         let instances = positions
             .into_iter()
             .map(|position| {
@@ -252,7 +246,7 @@ impl ResourcesLoader<'_> {
             });
 
         let model = self.load_model_obj(file_name).await?;
-        Ok(ModelInstances {
+        Ok(model::ModelInstances {
             model,
             instances,
             instance_buffer,

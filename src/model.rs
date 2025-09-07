@@ -1,3 +1,4 @@
+use crate::instance;
 use crate::texture;
 use std::ops::Range;
 
@@ -57,6 +58,12 @@ pub struct Mesh {
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
     pub material: usize,
+}
+
+pub struct ModelInstances {
+    pub instances: Vec<instance::Instance>,
+    pub model: Model,
+    pub instance_buffer: wgpu::Buffer,
 }
 
 pub trait DrawModel<'a> {

@@ -62,11 +62,8 @@ pub struct State {
     transform_bind_group: wgpu::BindGroup,
     transform_controller: transform::TransformController,
 
-    obj_model: model::Model,
-
+    model_instance: model::ModelInstances,
     egui_renderer: gui::EguiRenderer,
-    instances: Vec<instance::Instance>,
-    instance_buffer: wgpu::Buffer,
 
     is_rotation: bool,
 
@@ -387,14 +384,27 @@ impl State {
         // });
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
-        let resources_loader = resources::ResourcesLoader {
+        let resources_loader = resources::ModelsLoader {
             device: &device,
             queue: &queue,
             layout: &texture_bind_group_layout,
         };
         // Get Object Model
-        let obj_model = resources_loader
-            .load_model_obj("chinese_war_ship.obj")
+        let model_instance = resources_loader
+            .load_model_instances(
+                "chinese_war_ship.obj",
+                (0..instance::NUM_INSTANCES_PER_ROW)
+                    .flat_map(|z| {
+                        (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
+                            let x = instance::SPACE_BETWEEN
+                                * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                            let z = instance::SPACE_BETWEEN
+                                * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                            cgmath::Vector3::new(x, 0.0, z)
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            )
             .await?;
 
         // Pipeline layout
@@ -561,11 +571,9 @@ impl State {
             transform_bind_group,
             transform_controller,
 
-            obj_model,
+            model_instance,
 
             egui_renderer,
-            instances,
-            instance_buffer,
             is_rotation: false,
 
             depth_texture,
@@ -699,7 +707,7 @@ impl State {
         );
 
         // ROTATE INSTANCES
-        for instance in &mut self.instances {
+        for instance in &mut self.model_instance.instances {
             let rotation_amount = if self.is_rotation {
                 ROTATION_SPEED
             } else {
@@ -710,12 +718,13 @@ impl State {
             instance.rotation = amount * current;
         }
         let instance_data = self
+            .model_instance
             .instances
             .iter()
             .map(instance::Instance::to_raw)
             .collect::<Vec<_>>();
         self.queue.write_buffer(
-            &self.instance_buffer,
+            &self.model_instance.instance_buffer,
             0,
             bytemuck::cast_slice(&instance_data),
         );
@@ -786,10 +795,10 @@ impl State {
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
 
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.model_instance.instance_buffer.slice(..));
         render_pass.draw_model_instanced(
-            &self.obj_model,
-            0..self.instances.len() as u32,
+            &self.model_instance.model,
+            0..self.model_instance.instances.len() as u32,
             &self.camera_bind_group,
         );
 
@@ -815,7 +824,7 @@ impl State {
                     ui,
                     &mut gui_version1::GuiOptions::default(),
                     &mut gui_version1::GuiState {
-                        instances: &mut self.instances,
+                        instances: &mut self.model_instance.instances,
                         transform_object: &mut self.transform_object,
                         window: &self.window,
                     },
