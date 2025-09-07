@@ -773,7 +773,6 @@ impl State {
             timestamp_writes: None,
         });
 
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         // Load render pipeline
         render_pass.set_pipeline(
             self.pipeline_deque
@@ -787,6 +786,7 @@ impl State {
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
 
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.draw_model_instanced(
             &self.obj_model,
             0..self.instances.len() as u32,

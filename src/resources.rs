@@ -1,3 +1,5 @@
+use crate::instance;
+use cgmath::prelude::*;
 use std::io::{BufReader, Cursor};
 
 use wgpu::util::DeviceExt;
@@ -191,6 +193,12 @@ pub struct ResourcesLoader<'a> {
     pub layout: &'a wgpu::BindGroupLayout,
 }
 
+pub struct ModelInstances {
+    pub instances: Vec<instance::Instance>,
+    pub model: model::Model,
+    pub instance_buffer: wgpu::Buffer,
+}
+
 impl ResourcesLoader<'_> {
     pub async fn load_model_obj(&self, file_name: &str) -> anyhow::Result<model::Model> {
         match load_model_obj(file_name, self.device, self.queue, self.layout).await {
@@ -199,11 +207,55 @@ impl ResourcesLoader<'_> {
         }
     }
 
-    pub async fn load_models_obj(&self, file_names: &[&str]) -> Vec<anyhow::Result<model::Model>> {
-        let mut models = Vec::new();
-        for &file_name in file_names {
-            models.push(self.load_model_obj(file_name).await);
-        }
-        models
+    // pub async fn load_models_obj(&self, file_names: &[&str]) -> Vec<anyhow::Result<model::Model>> {
+    //     let mut models = Vec::new();
+    //     for &file_name in file_names {
+    //         models.push(self.load_model_obj(file_name).await);
+    //     }
+    //     models
+    // }
+
+    pub async fn load_model_instances(
+        &self,
+        file_name: &str,
+        positions: Vec<cgmath::Vector3<f32>>,
+    ) -> anyhow::Result<ModelInstances> {
+        let instances = positions
+            .into_iter()
+            .map(|position| {
+                let rotation = if position.is_zero() {
+                    // this is needed so an object at (0, 0, 0) won't get scaled to zero
+                    // as Quaternions can affect scale if they're not created correctly
+                    cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0))
+                } else {
+                    cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(0.0))
+                };
+
+                instance::Instance {
+                    name: format!("{}_{}_{}_{}", file_name, position.x, position.y, position.z),
+                    position,
+                    rotation,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let instance_data = instances
+            .iter()
+            .map(instance::Instance::to_raw)
+            .collect::<Vec<_>>();
+        let instance_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            });
+
+        let model = self.load_model_obj(file_name).await?;
+        Ok(ModelInstances {
+            model,
+            instances,
+            instance_buffer,
+        })
     }
 }
