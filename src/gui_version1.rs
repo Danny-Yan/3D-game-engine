@@ -38,6 +38,7 @@ impl GuiOptions {
 pub struct GuiState<'a> {
     pub instances: &'a mut Vec<instance::Instance>,
     pub transform_object: &'a mut transform::Transform,
+    pub window: &'a winit::window::Window,
 }
 
 pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState) {
@@ -46,34 +47,35 @@ pub fn show_gui(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState) {
 }
 
 fn show_instance_menu(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState) {
+    let window_size = state.window.inner_size();
     Window::new("Instances")
         // .vscroll(true)
         .default_open(true)
-        .max_width(1000.0)
-        .max_height(800.0)
-        .movable(true)
-        .default_width(800.0)
-        .resizable(true)
+        .min_width(800.0)
+        .min_height(window_size.height as f32)
         .anchor(Align2::RIGHT_TOP, [0.0, 0.0])
         .show(ctx, |ui| {
-            CollapsingHeader::new("Instances").show(ui, |ui| {
-                for instance in &mut *state.instances {
-                    CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
-                        let position: &mut Vector3<f32> = &mut instance.position;
-                        let rotation: &mut Euler<Rad<f32>> = &mut Euler::from(instance.rotation);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                CollapsingHeader::new("Instances").show(ui, |ui| {
+                    for instance in &mut *state.instances {
+                        CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
+                            let position: &mut Vector3<f32> = &mut instance.position;
+                            let rotation: &mut Euler<Rad<f32>> =
+                                &mut Euler::from(instance.rotation);
 
-                        ui.label("Settings");
-                        opt.create_slider(ui, "x", -200.0..=200.0, &mut position.x);
-                        opt.create_slider(ui, "y", -200.0..=200.0, &mut position.y);
-                        opt.create_slider(ui, "z", -200.0..=200.0, &mut position.z);
-                        opt.create_slider(ui, "Roll", -PI..=PI, &mut rotation.x.0);
-                        opt.create_slider(ui, "Yaw", -PI / 2.0..=PI / 2.0, &mut rotation.y.0);
-                        opt.create_slider(ui, "Pitch", -PI..=PI, &mut rotation.z.0);
-                        ui.end_row();
-                        instance.rotation = Quaternion::from(*rotation);
-                    });
-                }
-                ui.end_row();
+                            ui.label("Settings");
+                            opt.create_slider(ui, "x", -200.0..=200.0, &mut position.x);
+                            opt.create_slider(ui, "y", -200.0..=200.0, &mut position.y);
+                            opt.create_slider(ui, "z", -200.0..=200.0, &mut position.z);
+                            opt.create_slider(ui, "Roll", -PI..=PI, &mut rotation.x.0);
+                            opt.create_slider(ui, "Yaw", -PI / 2.0..=PI / 2.0, &mut rotation.y.0);
+                            opt.create_slider(ui, "Pitch", -PI..=PI, &mut rotation.z.0);
+                            ui.end_row();
+                            instance.rotation = Quaternion::from(*rotation);
+                        });
+                    }
+                    ui.end_row();
+                });
             });
         });
 }
@@ -89,18 +91,20 @@ fn show_global_settings_menu(ctx: &Context, opt: &mut GuiOptions, state: &mut Gu
         .resizable(true)
         .anchor(Align2::LEFT_TOP, [0.0, 0.0])
         .show(ctx, |ui| {
-            let rotation = &mut state.transform_object.rotation.0;
-            let translation = &mut state.transform_object.translation.0;
-            let scale = &mut state.transform_object.scale.0;
-            opt.create_slider(ui, "x", -4.0..=4.0, &mut translation.x);
-            opt.create_slider(ui, "y", -4.0..=4.0, &mut translation.y);
-            opt.create_slider(ui, "z", -4.0..=4.0, &mut translation.z);
-            opt.create_slider(ui, "Pitch", -PI..=PI, rotation.x.get_mut());
-            opt.create_slider(ui, "Roll", -PI..=PI, rotation.y.get_mut());
-            opt.create_slider(ui, "Yaw", -PI..=PI, rotation.z.get_mut());
-            opt.create_slider(ui, "scale x", -4.0..=4.0, scale.x.get_mut());
-            opt.create_slider(ui, "scale y", -4.0..=4.0, scale.y.get_mut());
-            opt.create_slider(ui, "scale z", -4.0..=4.0, scale.z.get_mut());
-            ui.end_row();
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                let rotation = &mut state.transform_object.rotation.0;
+                let translation = &mut state.transform_object.translation.0;
+                let scale = &mut state.transform_object.scale.0;
+                opt.create_slider(ui, "x", -4.0..=4.0, &mut translation.x);
+                opt.create_slider(ui, "y", -4.0..=4.0, &mut translation.y);
+                opt.create_slider(ui, "z", -4.0..=4.0, &mut translation.z);
+                opt.create_slider(ui, "Pitch", -PI..=PI, rotation.x.get_mut());
+                opt.create_slider(ui, "Roll", -PI..=PI, rotation.y.get_mut());
+                opt.create_slider(ui, "Yaw", -PI..=PI, rotation.z.get_mut());
+                opt.create_slider(ui, "scale x", -4.0..=4.0, scale.x.get_mut());
+                opt.create_slider(ui, "scale y", -4.0..=4.0, scale.y.get_mut());
+                opt.create_slider(ui, "scale z", -4.0..=4.0, scale.z.get_mut());
+                ui.end_row();
+            });
         });
 }
