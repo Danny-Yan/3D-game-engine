@@ -226,7 +226,13 @@ impl ModelsLoader<'_> {
                 };
 
                 instance::Instance {
-                    name: format!("{}_{}_{}_{}", file_name, position.x, position.y, position.z),
+                    name: format!(
+                        "{}_{}_{}_{}",
+                        file_name.split('.').next().unwrap(),
+                        position.x,
+                        position.y,
+                        position.z
+                    ),
                     position,
                     rotation,
                 }
@@ -246,6 +252,9 @@ impl ModelsLoader<'_> {
             });
 
         let model = self.load_model_obj(file_name).await?;
+
+        // Model, Start index, number of instances
+        // Vec<Vec<Models>>
         Ok(model::ModelInstances {
             model,
             instances,

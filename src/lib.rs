@@ -62,7 +62,7 @@ pub struct State {
     transform_bind_group: wgpu::BindGroup,
     transform_controller: transform::TransformController,
 
-    model_instance: model::ModelInstances,
+    models_instances: Vec<model::ModelInstances>,
     egui_renderer: gui::EguiRenderer,
 
     is_rotation: bool,
@@ -335,47 +335,6 @@ impl State {
 
         let camera_controller = camera::CameraController::new(0.1);
 
-        let instances = (0..instance::NUM_INSTANCES_PER_ROW)
-            .flat_map(|z| {
-                (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let x = instance::SPACE_BETWEEN
-                        * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                    let z = instance::SPACE_BETWEEN
-                        * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
-
-                    let name = format!("Instance_{}_{}", x, z);
-                    let position = cgmath::Vector3 { x, y: 0.0, z };
-
-                    let rotation = if position.is_zero() {
-                        // this is needed so an object at (0, 0, 0) won't get scaled to zero
-                        // as Quaternions can affect scale if they're not created correctly
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
-                    } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(0.0))
-                    };
-
-                    instance::Instance {
-                        name,
-                        position,
-                        rotation,
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        let instance_data = instances
-            .iter()
-            .map(instance::Instance::to_raw)
-            .collect::<Vec<_>>();
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-
         // Loading shaders
         // Shader shortcut for this
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -406,6 +365,25 @@ impl State {
                     .collect::<Vec<_>>(),
             )
             .await?;
+
+        let model_instance_dos = resources_loader
+            .load_model_instances(
+                "Car.obj",
+                (0..instance::NUM_INSTANCES_PER_ROW)
+                    .flat_map(|z| {
+                        (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
+                            let x = instance::SPACE_BETWEEN
+                                * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                            let z = instance::SPACE_BETWEEN
+                                * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                            cgmath::Vector3::new(x, 5.0, z)
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .await?;
+
+        let models_instances = vec![model_instance, model_instance_dos];
 
         // Pipeline layout
         let render_pipeline_layout =
@@ -571,7 +549,7 @@ impl State {
             transform_bind_group,
             transform_controller,
 
-            model_instance,
+            models_instances,
 
             egui_renderer,
             is_rotation: false,
@@ -706,28 +684,32 @@ impl State {
             bytemuck::cast_slice(&[self.transform_uniform]),
         );
 
-        // ROTATE INSTANCES
-        for instance in &mut self.model_instance.instances {
-            let rotation_amount = if self.is_rotation {
-                ROTATION_SPEED
-            } else {
-                0.0
-            };
-            let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(rotation_amount));
-            let current = instance.rotation;
-            instance.rotation = amount * current;
+        // Update instances
+        for model_instance in &mut self.models_instances {
+            // ROTATE INSTANCES
+            for instance in &mut model_instance.instances {
+                let rotation_amount = if self.is_rotation {
+                    ROTATION_SPEED
+                } else {
+                    0.0
+                };
+                let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(rotation_amount));
+                let current = instance.rotation;
+                instance.rotation = amount * current;
+            }
+
+            // INSTANCE UPDATED HERE
+            let instance_data = model_instance
+                .instances
+                .iter()
+                .map(instance::Instance::to_raw)
+                .collect::<Vec<_>>();
+            self.queue.write_buffer(
+                &model_instance.instance_buffer,
+                0,
+                bytemuck::cast_slice(&instance_data),
+            );
         }
-        let instance_data = self
-            .model_instance
-            .instances
-            .iter()
-            .map(instance::Instance::to_raw)
-            .collect::<Vec<_>>();
-        self.queue.write_buffer(
-            &self.model_instance.instance_buffer,
-            0,
-            bytemuck::cast_slice(&instance_data),
-        );
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -795,13 +777,14 @@ impl State {
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
 
-        render_pass.set_vertex_buffer(1, self.model_instance.instance_buffer.slice(..));
-        render_pass.draw_model_instanced(
-            &self.model_instance.model,
-            0..self.model_instance.instances.len() as u32,
-            &self.camera_bind_group,
-        );
-
+        for model_instance in &self.models_instances {
+            render_pass.set_vertex_buffer(1, model_instance.instance_buffer.slice(..));
+            render_pass.draw_model_instanced(
+                &model_instance.model,
+                0..model_instance.instances.len() as u32,
+                &self.camera_bind_group,
+            );
+        }
         // Render pass mutably borrows encoder
         // in order to continue using encoder, this borrow needs to be released
         drop(render_pass);
@@ -824,7 +807,7 @@ impl State {
                     ui,
                     &mut gui_version1::GuiOptions::default(),
                     &mut gui_version1::GuiState {
-                        instances: &mut self.model_instance.instances,
+                        model_instances: &mut self.models_instances,
                         transform_object: &mut self.transform_object,
                         window: &self.window,
                     },

@@ -1,5 +1,5 @@
 use crate::util::FloatWrapper;
-use crate::{instance, transform};
+use crate::{model, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
@@ -36,7 +36,7 @@ impl GuiOptions {
 }
 
 pub struct GuiState<'a> {
-    pub instances: &'a mut Vec<instance::Instance>,
+    pub model_instances: &'a mut Vec<model::ModelInstances>,
     pub transform_object: &'a mut transform::Transform,
     pub window: &'a winit::window::Window,
 }
@@ -57,22 +57,29 @@ fn show_instance_menu(ctx: &Context, opt: &mut GuiOptions, state: &mut GuiState)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 CollapsingHeader::new("Instances").show(ui, |ui| {
-                    for instance in &mut *state.instances {
-                        CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
-                            let position: &mut Vector3<f32> = &mut instance.position;
-                            let rotation: &mut Euler<Rad<f32>> =
-                                &mut Euler::from(instance.rotation);
+                    for instances in &mut *state.model_instances {
+                        for instance in &mut instances.instances {
+                            CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
+                                let position: &mut Vector3<f32> = &mut instance.position;
+                                let rotation: &mut Euler<Rad<f32>> =
+                                    &mut Euler::from(instance.rotation);
 
-                            ui.label("Settings");
-                            opt.create_slider(ui, "x", -200.0..=200.0, &mut position.x);
-                            opt.create_slider(ui, "y", -200.0..=200.0, &mut position.y);
-                            opt.create_slider(ui, "z", -200.0..=200.0, &mut position.z);
-                            opt.create_slider(ui, "Roll", -PI..=PI, &mut rotation.x.0);
-                            opt.create_slider(ui, "Yaw", -PI / 2.0..=PI / 2.0, &mut rotation.y.0);
-                            opt.create_slider(ui, "Pitch", -PI..=PI, &mut rotation.z.0);
-                            ui.end_row();
-                            instance.rotation = Quaternion::from(*rotation);
-                        });
+                                ui.label("Settings");
+                                opt.create_slider(ui, "x", -200.0..=200.0, &mut position.x);
+                                opt.create_slider(ui, "y", -200.0..=200.0, &mut position.y);
+                                opt.create_slider(ui, "z", -200.0..=200.0, &mut position.z);
+                                opt.create_slider(ui, "Roll", -PI..=PI, &mut rotation.x.0);
+                                opt.create_slider(
+                                    ui,
+                                    "Yaw",
+                                    -PI / 2.0..=PI / 2.0,
+                                    &mut rotation.y.0,
+                                );
+                                opt.create_slider(ui, "Pitch", -PI..=PI, &mut rotation.z.0);
+                                ui.end_row();
+                                instance.rotation = Quaternion::from(*rotation);
+                            });
+                        }
                     }
                     ui.end_row();
                 });
