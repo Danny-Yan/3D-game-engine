@@ -66,6 +66,20 @@ pub struct ModelInstances {
     pub instance_buffer: wgpu::Buffer,
 }
 
+// pub trait ModelInstancesTrait {
+//     fn update_instance_buffer(&mut self, device: &wgpu::Device);
+// }
+
+// impl ModelInstancesTrait for ModelInstances {
+//     fn update_instance_buffer(&mut self, device: &wgpu::Device) {
+//         self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+//             label: Some("Instance Buffer"),
+//             contents: bytemuck::cast_slice(&self.instances),
+//             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+//         });
+//     }
+// }
+
 pub trait DrawModel<'a> {
     fn draw_mesh(
         &mut self,

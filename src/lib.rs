@@ -827,6 +827,9 @@ impl State {
                         model_instances: &mut self.models_instances,
                         transform_object: &mut self.transform_object,
                         window: &self.window,
+                        device: &self.device,
+                        queue: &self.queue,
+                        texture_bind_group_layout: &self.texture_bind_group_layout,
                     },
                 )
             },

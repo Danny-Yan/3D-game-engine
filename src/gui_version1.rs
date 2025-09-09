@@ -1,3 +1,4 @@
+use crate::resources;
 use crate::util::FloatWrapper;
 use crate::{model, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
@@ -39,6 +40,34 @@ pub struct GuiState<'a> {
     pub model_instances: &'a mut Vec<model::ModelInstances>,
     pub transform_object: &'a mut transform::Transform,
     pub window: &'a winit::window::Window,
+
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub texture_bind_group_layout: &'a wgpu::BindGroupLayout,
+}
+
+impl GuiState<'_> {
+    pub async fn add_instance_by_name(&mut self, name: &str) -> anyhow::Result<()> {
+        let resources_loader = resources::ModelsLoader {
+            device: self.device,
+            queue: self.queue,
+            layout: self.texture_bind_group_layout,
+        };
+        // Get Object Model
+        let model_instance = resources_loader
+            .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
+            .await?;
+
+        self.model_instances.push(model_instance);
+        Ok(())
+    }
+}
+pub trait ModelInstancesVectorTrait {
+    fn add_new_model_instance(&mut self, device: &wgpu::Device);
+}
+
+impl ModelInstancesVectorTrait for Vec<model::ModelInstances> {
+    fn add_new_model_instance(&mut self, device: &wgpu::Device) {}
 }
 
 pub fn show_gui<'a>(ctx: &'a Context, opt: &mut GuiOptions, state: &'a mut GuiState<'a>) {
@@ -121,7 +150,9 @@ impl<'a> GuiViewer<'a> {
     fn section_instance_creation_menu(&mut self, ui: &mut egui::Ui) {
         CollapsingHeader::new("Add Instances").show(ui, |ui| {
             if ui.add(egui::Button::new("Add cube")).clicked() {
-                self.state.add_instance_by_name("cube.obj");
+
+                // ASYNC
+                // self.state.add_instance_by_name("cube.obj").await.unwrap();
             }
         });
     }
