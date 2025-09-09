@@ -49,6 +49,7 @@ pub struct State {
     pipeline_deque: VecDeque<wgpu::RenderPipeline>,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
 
     camera_object: camera::Camera,
     camera_uniform: camera::CameraUniform,
@@ -536,6 +537,7 @@ impl State {
 
             diffuse_bind_group,
             diffuse_texture,
+            texture_bind_group_layout,
 
             camera_object,
             camera_uniform,
@@ -647,6 +649,21 @@ impl State {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    pub async fn add_instance_by_name(&mut self, name: &str) -> anyhow::Result<()> {
+        let resources_loader = resources::ModelsLoader {
+            device: &self.device,
+            queue: &self.queue,
+            layout: &self.texture_bind_group_layout,
+        };
+        // Get Object Model
+        let model_instance = resources_loader
+            .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
+            .await?;
+
+        self.models_instances.push(model_instance);
         Ok(())
     }
 
