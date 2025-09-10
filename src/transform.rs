@@ -1,4 +1,3 @@
-use crate::gui_version1;
 use crate::keybind::KeybindHandler;
 use crate::keybind::TransformKeybind;
 use crate::util::{RadWrapper, ScaleValue, Vector3Wrapper};
@@ -8,7 +7,7 @@ use cgmath::Matrix4;
 #[derive(Default)]
 pub struct Transform {
     pub rotation: Vector3Wrapper<RadWrapper>,
-    pub translation: Vector3Wrapper<f32>, // WHY DOES THIS NOT WORK
+    pub translation: Vector3Wrapper<f32>,
     pub scale: Vector3Wrapper<ScaleValue>,
 }
 

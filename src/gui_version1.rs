@@ -4,6 +4,7 @@ use crate::{model, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
+use poll_promise;
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
 
@@ -62,19 +63,11 @@ impl GuiState<'_> {
         Ok(())
     }
 }
-pub trait ModelInstancesVectorTrait {
-    fn add_new_model_instance(&mut self, device: &wgpu::Device);
-}
-
-impl ModelInstancesVectorTrait for Vec<model::ModelInstances> {
-    fn add_new_model_instance(&mut self, device: &wgpu::Device) {}
-}
 
 pub fn show_gui<'a>(ctx: &'a Context, opt: &mut GuiOptions, state: &'a mut GuiState<'a>) {
     let mut gui_viewer = GuiViewer::new(ctx, *opt, state);
     gui_viewer.window_global_settings_menu();
     gui_viewer.window_instance_menu();
-    // show_global_settings_menu(ctx, opt, state);
 }
 
 struct GuiViewer<'a> {
@@ -148,13 +141,23 @@ impl<'a> GuiViewer<'a> {
     }
 
     fn section_instance_creation_menu(&mut self, ui: &mut egui::Ui) {
-        CollapsingHeader::new("Add Instances").show(ui, |ui| {
-            if ui.add(egui::Button::new("Add cube")).clicked() {
+        if ui.add(egui::Button::new("Add cube")).clicked() {
+            // ASYNC
 
-                // ASYNC
-                // self.state.add_instance_by_name("cube.obj").await.unwrap();
-            }
-        });
+            // DOES NOT WORK
+            // let promise = poll_promise::Promise::spawn_thread("slow_operation", &mut || {
+            //     self.state.add_instance_by_name("cube.obj");
+            // });
+
+            // // Then in the game loop or immediate mode GUI code:
+            // if let Some(result) = promise.ready() {
+            //     // Use/show result
+            // } else {
+            //     // Show a loading screen
+            // }
+        }
+
+        ui.end_row();
     }
 
     fn section_instance_settings_menu(&mut self, ui: &mut egui::Ui) {
