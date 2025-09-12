@@ -146,32 +146,12 @@ impl<'a> GuiViewer<'a> {
     fn section_instance_creation_menu(&mut self, ui: &mut egui::Ui) {
         if ui.add(egui::Button::new("Add cube")).clicked() {
             println!("Loading model");
-            thread::scope(|s| {
-                println!("Thread started");
-
-                // // Spawns but does nothing
-                // let _ = s
-                //     .spawn(move || async {
-                //         if self.state.add_instance_by_name("Cube.obj").await.is_err() {
-                //             println!("Failed to load model");
-                //         }
-                //         print!("{:?}", self.state.model_instances.len());
-                //     })
-                //     .join();
-                println!("Thread ended");
-                // model_instance.join().unwrap();
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                if self.state.add_instance_by_name("Cube.obj").await.is_err() {
+                    println!("Failed to load model");
+                }
+                println!("{:?}", self.state.model_instances.len());
             });
-            // let t1 = async {
-            //     // <-- a future instead of a closure
-            //     println!("hello from the first scoped task");
-            // };
-
-            // let t2 = async {
-            //     // <-- another future
-            //     println!("hello from the second scoped task");
-            // };
-
-            // tokio::join!(t1, t2);
         }
 
         ui.end_row();

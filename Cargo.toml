@@ -33,7 +33,7 @@ egui-winit = "0.32.1"
 egui = "0.32.1"
 tobj = { version = "3.2", default-features = false, features = ["async"]}
 fbx = "0.2.0"
-tokio = "1.47.1"
+tokio = { version = "1.47.1", features = ["full"] }
 
 [build-dependencies]
 anyhow = "1.0"
