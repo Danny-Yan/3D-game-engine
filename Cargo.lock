@@ -2112,16 +2112,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "poll-promise"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f6a58fecbf9da8965bcdb20ce4fd29788d1acee68ddbb64f0ba1b81bccdb7df"
-dependencies = [
- "document-features",
- "static_assertions",
-]
-
-[[package]]
 name = "polling"
 version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3432,12 +3422,12 @@ dependencies = [
  "glob",
  "image 0.24.9",
  "log",
- "poll-promise",
  "pollster",
  "reqwest",
  "serde",
  "serde_json",
  "tobj",
+ "tokio",
  "typetag",
  "wasm-bindgen",
  "wasm-bindgen-futures",

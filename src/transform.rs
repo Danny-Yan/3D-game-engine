@@ -4,7 +4,7 @@ use crate::util::{RadWrapper, ScaleValue, Vector3Wrapper};
 use anyhow::Ok;
 use cgmath::Matrix4;
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct Transform {
     pub rotation: Vector3Wrapper<RadWrapper>,
     pub translation: Vector3Wrapper<f32>,

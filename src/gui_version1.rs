@@ -2,11 +2,12 @@ use crate::resources;
 use crate::util::FloatWrapper;
 use crate::{model, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
+use egui::debug_text::print;
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
-use poll_promise;
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
+use std::thread;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GuiOptions {
@@ -58,7 +59,6 @@ impl GuiState<'_> {
         let model_instance = resources_loader
             .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
             .await?;
-
         self.model_instances.push(model_instance);
         Ok(())
     }
@@ -97,9 +97,12 @@ impl<'a> GuiViewer<'a> {
             .anchor(Align2::LEFT_TOP, [0.0, 0.0])
             .show(self.ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    // Probs bad for performance
+
                     let rotation = &mut self.state.transform_object.rotation.0;
                     let translation = &mut self.state.transform_object.translation.0;
                     let scale = &mut self.state.transform_object.scale.0;
+
                     self.options
                         .create_slider(ui, "x", -4.0..=4.0, &mut translation.x);
                     self.options
@@ -142,19 +145,33 @@ impl<'a> GuiViewer<'a> {
 
     fn section_instance_creation_menu(&mut self, ui: &mut egui::Ui) {
         if ui.add(egui::Button::new("Add cube")).clicked() {
-            // ASYNC
+            println!("Loading model");
+            thread::scope(|s| {
+                println!("Thread started");
 
-            // DOES NOT WORK
-            // let promise = poll_promise::Promise::spawn_thread("slow_operation", &mut || {
-            //     self.state.add_instance_by_name("cube.obj");
-            // });
+                // // Spawns but does nothing
+                // let _ = s
+                //     .spawn(move || async {
+                //         if self.state.add_instance_by_name("Cube.obj").await.is_err() {
+                //             println!("Failed to load model");
+                //         }
+                //         print!("{:?}", self.state.model_instances.len());
+                //     })
+                //     .join();
+                println!("Thread ended");
+                // model_instance.join().unwrap();
+            });
+            // let t1 = async {
+            //     // <-- a future instead of a closure
+            //     println!("hello from the first scoped task");
+            // };
 
-            // // Then in the game loop or immediate mode GUI code:
-            // if let Some(result) = promise.ready() {
-            //     // Use/show result
-            // } else {
-            //     // Show a loading screen
-            // }
+            // let t2 = async {
+            //     // <-- another future
+            //     println!("hello from the second scoped task");
+            // };
+
+            // tokio::join!(t1, t2);
         }
 
         ui.end_row();

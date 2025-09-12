@@ -652,21 +652,6 @@ impl State {
         Ok(())
     }
 
-    pub async fn add_instance_by_name(&mut self, name: &str) -> anyhow::Result<()> {
-        let resources_loader = resources::ModelsLoader {
-            device: &self.device,
-            queue: &self.queue,
-            layout: &self.texture_bind_group_layout,
-        };
-        // Get Object Model
-        let model_instance = resources_loader
-            .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
-            .await?;
-
-        self.models_instances.push(model_instance);
-        Ok(())
-    }
-
     fn switch_shape(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
@@ -824,6 +809,7 @@ impl State {
                     ui,
                     &mut gui_version1::GuiOptions::default(),
                     &mut gui_version1::GuiState {
+                        // PROBS BAD TO DO CLONE
                         model_instances: &mut self.models_instances,
                         transform_object: &mut self.transform_object,
                         window: &self.window,
