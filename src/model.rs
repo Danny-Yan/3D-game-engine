@@ -43,6 +43,7 @@ impl Vertex for ModelVertex {
 
 #[derive(Clone)]
 pub struct Model {
+    pub name: String,
     pub meshes: Vec<Mesh>,
     pub materials: Vec<Material>,
 }

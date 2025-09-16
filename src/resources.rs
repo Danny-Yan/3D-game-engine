@@ -171,7 +171,11 @@ pub async fn load_model_obj(
         })
         .collect::<Vec<_>>();
 
-    Ok(model::Model { meshes, materials })
+    Ok(model::Model {
+        name: file_name.to_string(),
+        meshes,
+        materials,
+    })
 }
 
 #[allow(dead_code, unused_variables)]

@@ -1,11 +1,12 @@
-use crate::resources;
 use crate::util::FloatWrapper;
-use crate::{model, transform};
+use crate::{instance, model, resources, transform};
+use cgmath::prelude::*;
 use cgmath::{Euler, Quaternion, Rad, Vector3};
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
+use wgpu::util::DeviceExt;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GuiOptions {
@@ -48,16 +49,58 @@ pub struct GuiState<'a> {
 
 impl GuiState<'_> {
     pub async fn add_instance_by_name(&mut self, name: &str) -> anyhow::Result<()> {
-        let resources_loader = resources::ModelsLoader {
-            device: self.device,
-            queue: self.queue,
-            layout: self.texture_bind_group_layout,
-        };
-        // Get Object Model
-        let model_instance = resources_loader
-            .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
-            .await?;
-        self.model_instances.push(model_instance);
+        // Find if model instance already exists
+        if let Some(existing_instance) = self
+            .model_instances
+            .iter_mut()
+            .find(|instance| instance.model.name == name)
+        {
+            println!("Adding instance to existing model");
+            // create new instance if available
+            let new_instance = instance::Instance {
+                name: format!(
+                    "{}_{}_{}_{}",
+                    name.split('.').next().unwrap(),
+                    0.0,
+                    0.0,
+                    0.0
+                ),
+                position: cgmath::Vector3::new(0.0, 5.0, 0.0),
+                rotation: cgmath::Quaternion::from_axis_angle(
+                    cgmath::Vector3::new(0.0, 0.0, 0.0).normalize(),
+                    cgmath::Deg(0.0),
+                ),
+            };
+
+            existing_instance.instances.push(new_instance);
+
+            let instance_data = existing_instance
+                .instances
+                .iter()
+                .map(instance::Instance::to_raw)
+                .collect::<Vec<_>>();
+            let instance_buffer =
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Instance Buffer"),
+                        contents: bytemuck::cast_slice(&instance_data),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    });
+
+            existing_instance.instance_buffer = instance_buffer;
+        } else {
+            println!("Adding instance to new model");
+            let resources_loader = resources::ModelsLoader {
+                device: self.device,
+                queue: self.queue,
+                layout: self.texture_bind_group_layout,
+            };
+            // Get Object Model
+            let model_instance = resources_loader
+                .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
+                .await?;
+            self.model_instances.push(model_instance);
+        }
         Ok(())
     }
 }
