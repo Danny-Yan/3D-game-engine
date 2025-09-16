@@ -2,12 +2,10 @@ use crate::resources;
 use crate::util::FloatWrapper;
 use crate::{model, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
-use egui::debug_text::print;
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
-use std::thread;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GuiOptions {
@@ -146,6 +144,8 @@ impl<'a> GuiViewer<'a> {
     fn section_instance_creation_menu(&mut self, ui: &mut egui::Ui) {
         if ui.add(egui::Button::new("Add cube")).clicked() {
             println!("Loading model");
+
+            // Based as hell
             tokio::runtime::Runtime::new().unwrap().block_on(async {
                 if self.state.add_instance_by_name("Cube.obj").await.is_err() {
                     println!("Failed to load model");
