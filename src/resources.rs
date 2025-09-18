@@ -1,6 +1,7 @@
 use crate::instance;
 use cgmath::prelude::*;
 use std::io::{BufReader, Cursor};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use wgpu::util::DeviceExt;
 
@@ -196,6 +197,7 @@ pub struct ModelsLoader<'a> {
     pub queue: &'a wgpu::Queue,
     pub layout: &'a wgpu::BindGroupLayout,
 }
+static mut LEVELS: u32 = 0;
 
 impl ModelsLoader<'_> {
     pub async fn load_model_obj(&self, file_name: &str) -> anyhow::Result<model::Model> {
@@ -220,7 +222,8 @@ impl ModelsLoader<'_> {
     ) -> anyhow::Result<model::ModelInstances> {
         let instances = positions
             .into_iter()
-            .map(|position| {
+            .enumerate()
+            .map(|(index, position)| {
                 let rotation = if position.is_zero() {
                     // this is needed so an object at (0, 0, 0) won't get scaled to zero
                     // as Quaternions can affect scale if they're not created correctly
@@ -230,13 +233,7 @@ impl ModelsLoader<'_> {
                 };
 
                 instance::Instance {
-                    name: format!(
-                        "{}_{}_{}_{}",
-                        file_name.split('.').next().unwrap(),
-                        position.x,
-                        position.y,
-                        position.z
-                    ),
+                    name: format!("{}_{}", file_name.split('.').next().unwrap(), index),
                     position,
                     rotation,
                 }

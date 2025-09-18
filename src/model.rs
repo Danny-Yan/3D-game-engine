@@ -71,6 +71,17 @@ pub struct ModelInstances {
     pub instance_buffer: wgpu::Buffer,
 }
 
+impl std::fmt::Debug for ModelInstances {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{ model: {}, num_instances: {} }}",
+            self.model.name,
+            self.instances.len()
+        )
+    }
+}
+
 // pub trait ModelInstancesTrait {
 //     fn update_instance_buffer(&mut self, device: &wgpu::Device);
 // }

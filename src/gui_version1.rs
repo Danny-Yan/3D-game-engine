@@ -59,15 +59,13 @@ impl GuiState<'_> {
             // create new instance if available
             let new_instance = instance::Instance {
                 name: format!(
-                    "{}_{}_{}_{}",
+                    "{}_{}",
                     name.split('.').next().unwrap(),
-                    0.0,
-                    0.0,
-                    0.0
+                    existing_instance.instances.len(),
                 ),
                 position: cgmath::Vector3::new(0.0, 5.0, 0.0),
                 rotation: cgmath::Quaternion::from_axis_angle(
-                    cgmath::Vector3::new(0.0, 0.0, 0.0).normalize(),
+                    cgmath::Vector3::unit_y(),
                     cgmath::Deg(0.0),
                 ),
             };
@@ -101,6 +99,8 @@ impl GuiState<'_> {
                 .await?;
             self.model_instances.push(model_instance);
         }
+
+        println!("Model instances {:?}", self.model_instances);
         Ok(())
     }
 }
