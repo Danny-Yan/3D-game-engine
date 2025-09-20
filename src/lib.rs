@@ -63,7 +63,7 @@ pub struct State {
     transform_bind_group: wgpu::BindGroup,
     transform_controller: transform::TransformController,
 
-    models_instances: Vec<model::ModelInstances>,
+    models_instance_list: model::ModelInstanceList,
     egui_renderer: gui::EguiRenderer,
 
     is_rotation: bool,
@@ -344,14 +344,10 @@ impl State {
         // });
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
-        let resources_loader = resources::ModelsLoader {
-            device: &device,
-            queue: &queue,
-            layout: &texture_bind_group_layout,
-        };
-        // Get Object Model
-        let model_instance = resources_loader
-            .load_model_instances(
+        // Loading models
+        let mut models_instance_list = model::ModelInstanceList::new();
+        let instances_list = [
+            (
                 "chinese_war_ship.obj",
                 (0..instance::NUM_INSTANCES_PER_ROW)
                     .flat_map(|z| {
@@ -364,11 +360,8 @@ impl State {
                         })
                     })
                     .collect::<Vec<_>>(),
-            )
-            .await?;
-
-        let model_instance_dos = resources_loader
-            .load_model_instances(
+            ),
+            (
                 "Car.obj",
                 (0..instance::NUM_INSTANCES_PER_ROW)
                     .flat_map(|z| {
@@ -381,11 +374,15 @@ impl State {
                         })
                     })
                     .collect::<Vec<_>>(),
-            )
-            .await?;
+            ),
+        ];
 
-        let models_instances = vec![model_instance, model_instance_dos];
-
+        // Add models by name and positions
+        for (name, positions) in instances_list {
+            models_instance_list
+                .add_model_instances(name, positions, &device, &queue, &texture_bind_group_layout)
+                .await?;
+        }
         // Pipeline layout
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -551,7 +548,7 @@ impl State {
             transform_bind_group,
             transform_controller,
 
-            models_instances,
+            models_instance_list,
 
             egui_renderer,
             is_rotation: false,
@@ -687,7 +684,7 @@ impl State {
         );
 
         // Update instances
-        for model_instance in &mut self.models_instances {
+        for model_instance in &mut self.models_instance_list.0 {
             // ROTATE INSTANCES
             for instance in &mut model_instance.instances {
                 let rotation_amount = if self.is_rotation {
@@ -779,7 +776,7 @@ impl State {
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
 
-        for model_instance in &self.models_instances {
+        for model_instance in &self.models_instance_list.0 {
             render_pass.set_vertex_buffer(1, model_instance.instance_buffer.slice(..));
             render_pass.draw_model_instanced(
                 &model_instance.model,
@@ -810,7 +807,7 @@ impl State {
                     &mut gui_version1::GuiOptions::default(),
                     &mut gui_version1::GuiState {
                         // PROBS BAD TO DO CLONE
-                        model_instances: &mut self.models_instances,
+                        models_instance_list: &mut self.models_instance_list,
                         transform_object: &mut self.transform_object,
                         window: &self.window,
                         device: &self.device,

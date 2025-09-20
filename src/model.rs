@@ -1,4 +1,9 @@
+use anyhow::Ok;
+use cgmath::prelude::*;
+use wgpu::util::DeviceExt;
+
 use crate::instance;
+use crate::resources;
 use crate::texture;
 use std::ops::Range;
 
@@ -82,19 +87,91 @@ impl std::fmt::Debug for ModelInstances {
     }
 }
 
-// pub trait ModelInstancesTrait {
-//     fn update_instance_buffer(&mut self, device: &wgpu::Device);
-// }
+impl ModelInstances {
+    pub fn add_instances(
+        &mut self,
+        name: &str,
+        positions: Vec<cgmath::Vector3<f32>>,
+        device: &wgpu::Device,
+    ) {
+        let new_instance_list = positions
+            .iter()
+            .map(|position| instance::Instance {
+                name: format!(
+                    "{}_{}",
+                    name.split('.').next().unwrap(),
+                    self.instances.len(),
+                ),
+                position: *position,
+                rotation: cgmath::Quaternion::from_axis_angle(
+                    cgmath::Vector3::unit_y(),
+                    cgmath::Deg(0.0),
+                ),
+            })
+            .collect::<Vec<_>>();
 
-// impl ModelInstancesTrait for ModelInstances {
-//     fn update_instance_buffer(&mut self, device: &wgpu::Device) {
-//         self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//             label: Some("Instance Buffer"),
-//             contents: bytemuck::cast_slice(&self.instances),
-//             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-//         });
-//     }
-// }
+        self.instances.extend(new_instance_list);
+
+        let instance_data = self
+            .instances
+            .iter()
+            .map(instance::Instance::to_raw)
+            .collect::<Vec<_>>();
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+
+        self.instance_buffer = instance_buffer;
+    }
+}
+pub struct ModelInstanceList(pub Vec<ModelInstances>);
+
+impl ModelInstanceList {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn get_total_instance_count(&self) -> usize {
+        self.0.iter().map(|mi| mi.instances.len()).sum()
+    }
+
+    async fn add_new_model_instances(
+        &mut self,
+        name: &str,
+        positions: Vec<cgmath::Vector3<f32>>,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        layout: &wgpu::BindGroupLayout,
+    ) -> anyhow::Result<()> {
+        let model_instance =
+            resources::load_model_instances(name, positions, device, queue, layout).await?;
+        self.0.push(model_instance);
+        Ok(())
+    }
+
+    pub async fn add_model_instances(
+        &mut self,
+        name: &str,
+        positions: Vec<cgmath::Vector3<f32>>,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        layout: &wgpu::BindGroupLayout,
+    ) -> anyhow::Result<()> {
+        if let Some(existing_instance) = self
+            .0
+            .iter_mut()
+            .find(|instance| instance.model.name == name)
+        {
+            existing_instance.add_instances(name, positions, device);
+        } else {
+            self.add_new_model_instances(name, positions, device, queue, layout)
+                .await?;
+        }
+        Ok(())
+    }
+}
 
 pub trait DrawModel<'a> {
     fn draw_mesh(

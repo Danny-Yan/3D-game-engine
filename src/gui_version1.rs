@@ -6,6 +6,7 @@ use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
+use tobj::Model;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug, Clone, Copy)]
@@ -38,7 +39,7 @@ impl GuiOptions {
 }
 
 pub struct GuiState<'a> {
-    pub model_instances: &'a mut Vec<model::ModelInstances>,
+    pub models_instance_list: &'a mut model::ModelInstanceList,
     pub transform_object: &'a mut transform::Transform,
     pub window: &'a winit::window::Window,
 
@@ -49,58 +50,16 @@ pub struct GuiState<'a> {
 
 impl GuiState<'_> {
     pub async fn add_instance_by_name(&mut self, name: &str) -> anyhow::Result<()> {
-        // Find if model instance already exists
-        if let Some(existing_instance) = self
-            .model_instances
-            .iter_mut()
-            .find(|instance| instance.model.name == name)
-        {
-            println!("Adding instance to existing model");
-            // create new instance if available
-            let new_instance = instance::Instance {
-                name: format!(
-                    "{}_{}",
-                    name.split('.').next().unwrap(),
-                    existing_instance.instances.len(),
-                ),
-                position: cgmath::Vector3::new(0.0, 5.0, 0.0),
-                rotation: cgmath::Quaternion::from_axis_angle(
-                    cgmath::Vector3::unit_y(),
-                    cgmath::Deg(0.0),
-                ),
-            };
-
-            existing_instance.instances.push(new_instance);
-
-            let instance_data = existing_instance
-                .instances
-                .iter()
-                .map(instance::Instance::to_raw)
-                .collect::<Vec<_>>();
-            let instance_buffer =
-                self.device
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Instance Buffer"),
-                        contents: bytemuck::cast_slice(&instance_data),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    });
-
-            existing_instance.instance_buffer = instance_buffer;
-        } else {
-            println!("Adding instance to new model");
-            let resources_loader = resources::ModelsLoader {
-                device: self.device,
-                queue: self.queue,
-                layout: self.texture_bind_group_layout,
-            };
-            // Get Object Model
-            let model_instance = resources_loader
-                .load_model_instances(name, vec![cgmath::Vector3::new(0.0, 0.0, 0.0)])
-                .await?;
-            self.model_instances.push(model_instance);
-        }
-
-        println!("Model instances {:?}", self.model_instances);
+        // Add model instance
+        self.models_instance_list
+            .add_model_instances(
+                name,
+                vec![Vector3::new(0.0, 0.0, 0.0)],
+                self.device,
+                self.queue,
+                self.texture_bind_group_layout,
+            )
+            .await?;
         Ok(())
     }
 }
@@ -193,7 +152,10 @@ impl<'a> GuiViewer<'a> {
                 if self.state.add_instance_by_name("Cube.obj").await.is_err() {
                     println!("Failed to load model");
                 }
-                println!("{:?}", self.state.model_instances.len());
+                println!(
+                    "{:?}",
+                    self.state.models_instance_list.get_total_instance_count()
+                );
             });
         }
 
@@ -202,7 +164,7 @@ impl<'a> GuiViewer<'a> {
 
     fn section_instance_settings_menu(&mut self, ui: &mut egui::Ui) {
         CollapsingHeader::new("Instances Settings").show(ui, |ui| {
-            for instances in &mut *self.state.model_instances {
+            for instances in &mut *self.state.models_instance_list.0 {
                 for instance in &mut instances.instances {
                     CollapsingHeader::new(instance.name.to_string()).show(ui, |ui| {
                         let position: &mut Vector3<f32> = &mut instance.position;
