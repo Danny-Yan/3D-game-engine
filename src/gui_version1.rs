@@ -144,12 +144,19 @@ impl<'a> GuiViewer<'a> {
     }
 
     fn section_instance_creation_menu(&mut self, ui: &mut egui::Ui) {
-        if ui.add(egui::Button::new("Add cube")).clicked() {
+        self.button_create_instance_by_name(ui, "Cube.obj");
+        self.button_create_instance_by_name(ui, "Car.obj");
+        self.button_create_instance_by_name(ui, "chinese_war_ship.obj");
+        ui.end_row();
+    }
+
+    fn button_create_instance_by_name(&mut self, ui: &mut egui::Ui, name: &str) {
+        if ui.button(format!("Add {}", name)).clicked() {
             println!("Loading model");
 
             // Based as hell
             tokio::runtime::Runtime::new().unwrap().block_on(async {
-                if self.state.add_instance_by_name("Cube.obj").await.is_err() {
+                if self.state.add_instance_by_name(name).await.is_err() {
                     println!("Failed to load model");
                 }
                 println!(
@@ -158,8 +165,6 @@ impl<'a> GuiViewer<'a> {
                 );
             });
         }
-
-        ui.end_row();
     }
 
     fn section_instance_settings_menu(&mut self, ui: &mut egui::Ui) {
