@@ -64,6 +64,7 @@ pub struct State {
     transform_controller: transform::TransformController,
 
     models_instance_list: model::ModelInstanceList,
+    engine_rendered_models_list: model::ModelInstanceList,
     egui_renderer: gui::EguiRenderer,
 
     is_rotation: bool,
@@ -383,6 +384,9 @@ impl State {
                 .add_model_instances(name, positions, &device, &queue, &texture_bind_group_layout)
                 .await?;
         }
+
+        let engine_rendered_models_list = model::ModelInstanceList::new();
+
         // Pipeline layout
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -549,6 +553,7 @@ impl State {
             transform_controller,
 
             models_instance_list,
+            engine_rendered_models_list,
 
             egui_renderer,
             is_rotation: false,
