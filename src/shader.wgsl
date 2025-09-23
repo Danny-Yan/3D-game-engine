@@ -27,9 +27,9 @@ var<uniform> camera: CameraUniform;
 struct TransformUniform {
     matrix: mat4x4<f32>,
 };
-@group(2) @binding(0) // From transform_bind_group
+@group(1) @binding(0) // From transform_bind_group
 var<uniform> transform: TransformUniform;
-
+1
 struct InstanceInput {
     @location(5) model_matrix_0: vec4<f32>,
     @location(6) model_matrix_1: vec4<f32>,
@@ -97,9 +97,9 @@ fn fs_texture(in: VertexOutput) -> @location(0) vec4<f32> {
 
 
 // From diffuse bind group
-@group(3) @binding(0)
+@group(2) @binding(0)
 var t_depth: texture_depth_2d;
-@group(3) @binding(1)
+@group(2) @binding(1)
 var s_depth: sampler_comparison;
 
 @fragment

@@ -264,44 +264,6 @@ impl State {
             label: Some("depth_bind_group"),
         });
 
-        // TRANSFORM -----------------------------------
-        let transform_object = transform::Transform::default();
-
-        let mut transform_uniform = transform::TransformUniform::new();
-        transform_uniform.update_matrix(&transform_object);
-
-        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Transform Buffer"),
-            contents: bytemuck::cast_slice(&[transform_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let transform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX, // Only visible to vertex shader
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false, // Location of the data in the transform_buffer may change (if true)
-                        min_binding_size: None,    // Smallest buffer size
-                    },
-                    count: None,
-                }],
-                label: Some("transform_bind_group_layout"),
-            });
-
-        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &transform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: transform_buffer.as_entire_binding(),
-            }],
-            label: Some("transform_bind_group"),
-        });
-
-        let transform_controller = transform::TransformController::new();
-
         // CAMERA -----------------------------------
         let camera_object = camera::Camera {
             aspect: config.width as f32 / config.height as f32,
@@ -342,6 +304,29 @@ impl State {
         });
 
         let camera_controller = camera::CameraController::new(0.1);
+
+        // TRANSFORM -----------------------------------
+        let transform_object = transform::Transform::default();
+
+        let mut transform_uniform = transform::TransformUniform::new();
+        transform_uniform.update_matrix(&transform_object);
+
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[transform_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            }],
+            label: Some("transform_bind_group"),
+        });
+
+        let transform_controller = transform::TransformController::new();
 
         // LIGHTING -----------------------------------
         let light_uniform = lighting::LightUniform {
@@ -388,7 +373,6 @@ impl State {
         //     label: Some("Shader"),
         //     source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         // });
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
         // Loading models
         let mut models_instance_list = model::ModelInstanceList::new();
@@ -439,9 +423,8 @@ impl State {
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
                     &camera_bind_group_layout,
-                    &transform_bind_group_layout,
                     &depth_bind_group_layout,
-                    // &light_bind_group_layout, // can only have 4 bind groups
+                    &light_bind_group_layout, // can only have 4 bind groups
                 ],
                 push_constant_ranges: &[],
             });
@@ -763,6 +746,7 @@ impl State {
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
         render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
+        render_pass.set_bind_group(4, &self.light_bind_group, &[]);
 
         for model_instance in &self.models_instance_list.0 {
             render_pass.set_vertex_buffer(1, model_instance.instance_buffer.slice(..));
