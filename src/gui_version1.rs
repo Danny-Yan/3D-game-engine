@@ -1,13 +1,10 @@
 use crate::util::FloatWrapper;
-use crate::{instance, model, resources, transform};
-use cgmath::prelude::*;
+use crate::{model, transform};
 use cgmath::{Euler, Quaternion, Rad, Vector3};
 use egui::emath::Numeric;
 use egui::{Align2, CollapsingHeader, Context, Slider, Window};
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
-use tobj::Model;
-use wgpu::util::DeviceExt;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GuiOptions {
@@ -52,7 +49,7 @@ impl GuiState<'_> {
     pub async fn add_instance_by_name(&mut self, name: &str) -> anyhow::Result<()> {
         // Add model instance
         self.models_instance_list
-            .add_model_instances(
+            .add_instances(
                 name,
                 vec![Vector3::new(0.0, 0.0, 0.0)],
                 self.device,

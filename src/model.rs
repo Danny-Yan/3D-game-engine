@@ -151,7 +151,7 @@ impl ModelInstanceList {
         Ok(())
     }
 
-    pub async fn add_model_instances(
+    pub async fn add_instances(
         &mut self,
         name: &str,
         positions: Vec<cgmath::Vector3<f32>>,

@@ -410,7 +410,7 @@ impl State {
         // Add models by name and positions
         for (name, positions) in instances_list {
             models_instance_list
-                .add_model_instances(name, positions, &device, &queue, &texture_bind_group_layout)
+                .add_instances(name, positions, &device, &queue, &texture_bind_group_layout)
                 .await?;
         }
 
