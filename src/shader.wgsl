@@ -29,7 +29,7 @@ struct TransformUniform {
 };
 @group(1) @binding(0) // From transform_bind_group
 var<uniform> transform: TransformUniform;
-1
+
 struct InstanceInput {
     @location(5) model_matrix_0: vec4<f32>,
     @location(6) model_matrix_1: vec4<f32>,

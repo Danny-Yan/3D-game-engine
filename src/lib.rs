@@ -27,8 +27,10 @@ use cgmath::prelude::*;
 mod model;
 use model::DrawModel;
 use model::Vertex;
+mod bind_group;
 mod gui_version1;
 mod lighting;
+mod pipeline;
 mod resources;
 
 #[cfg(target_arch = "wasm32")]
@@ -422,7 +424,7 @@ impl State {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
-                    &camera_bind_group_layout,
+                    &camera_bind_group_layout, // Combined camera and transform bind group layout
                     &depth_bind_group_layout,
                     &light_bind_group_layout, // can only have 4 bind groups
                 ],
@@ -516,7 +518,6 @@ impl State {
             light_bind_group_layout,
         })
     }
-
     // Supports resizing application
     // Surface is reconfigured everytime the window size changes
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -744,9 +745,8 @@ impl State {
         // Load bind group
         render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-        render_pass.set_bind_group(2, &self.transform_bind_group, &[]);
-        render_pass.set_bind_group(3, &self.depth_bind_group, &[]);
-        render_pass.set_bind_group(4, &self.light_bind_group, &[]);
+        render_pass.set_bind_group(2, &self.depth_bind_group, &[]);
+        render_pass.set_bind_group(3, &self.light_bind_group, &[]);
 
         for model_instance in &self.models_instance_list.0 {
             render_pass.set_vertex_buffer(1, model_instance.instance_buffer.slice(..));
@@ -756,6 +756,8 @@ impl State {
                 &self.camera_bind_group,
             );
         }
+
+        render_pass.set_bind_group(1, &self.transform_bind_group, &[]);
         // Render pass mutably borrows encoder
         // in order to continue using encoder, this borrow needs to be released
         drop(render_pass);
