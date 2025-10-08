@@ -1,23 +1,24 @@
-use crate::bind_group::BindGroupLayouts;
 use crate::{instance, model, model::Vertex, texture};
 use std::collections::VecDeque;
+use struct_as_array::AsArray;
 
 pub struct PipelineLayouts {
     pub render: wgpu::PipelineLayout,
 }
 
 impl PipelineLayouts {
-    pub fn new(device: &wgpu::Device, bind_group_layouts: &BindGroupLayouts) -> Self {
+    pub fn new(device: &wgpu::Device, bind_group_layouts: &[&wgpu::BindGroupLayout]) -> Self {
         // Pipeline layout
         let render = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &bind_group_layouts.as_array(),
+            bind_group_layouts,
             push_constant_ranges: &[],
         });
         Self { render }
     }
 }
 
+#[derive(AsArray)]
 pub struct Pipelines {
     _depth_pipeline: wgpu::RenderPipeline,
     _main_pipeline: wgpu::RenderPipeline,
@@ -33,17 +34,26 @@ impl Pipelines {
         let _depth_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("../Shaders/shader.wgsl").into()),
             };
+            // Loading shaders
+            // Shader shortcut for this
+            // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            //     label: Some("Shader"),
+            //     source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            // });
+
             Pipelines::create_render_pipeline(
                 device,
                 &pipeline_layouts.render,
-                Some("vs_main"),
-                Some("fs_depth_texture"),
-                config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[model::ModelVertex::desc(), instance::InstanceRaw::desc()],
-                shader,
+                RenderPipelineOptions {
+                    vertex_entry: Some("vs_main"),
+                    fragment_entry: Some("fs_depth_texture"),
+                    color_format: config.format,
+                    depth_format: Some(texture::Texture::DEPTH_FORMAT),
+                    vertex_layouts: &[model::ModelVertex::desc(), instance::InstanceRaw::desc()],
+                    shader,
+                },
             )
         };
 
@@ -51,17 +61,19 @@ impl Pipelines {
         let _main_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("../Shaders/shader.wgsl").into()),
             };
             Pipelines::create_render_pipeline(
                 device,
                 &pipeline_layouts.render,
-                Some("vs_main"),
-                Some("fs_texture"),
-                config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[model::ModelVertex::desc(), instance::InstanceRaw::desc()],
-                shader,
+                RenderPipelineOptions {
+                    vertex_entry: Some("vs_main"),
+                    fragment_entry: Some("fs_texture"),
+                    color_format: config.format,
+                    depth_format: Some(texture::Texture::DEPTH_FORMAT),
+                    vertex_layouts: &[model::ModelVertex::desc(), instance::InstanceRaw::desc()],
+                    shader,
+                },
             )
         };
 
@@ -71,20 +83,24 @@ impl Pipelines {
         }
     }
 
-    pub fn as_deque(&self) -> VecDeque<&wgpu::RenderPipeline> {
-        VecDeque::from([&self._depth_pipeline, &self._main_pipeline])
+    pub fn convert_to_deque(self) -> VecDeque<wgpu::RenderPipeline> {
+        VecDeque::from(self.to_array().to_vec())
     }
 
     fn create_render_pipeline(
         device: &wgpu::Device,
         layout: &wgpu::PipelineLayout,
-        vertex_entry: Option<&str>,
-        fragment_entry: Option<&str>,
-        color_format: wgpu::TextureFormat,
-        depth_format: Option<wgpu::TextureFormat>,
-        vertex_layouts: &[wgpu::VertexBufferLayout],
-        shader: wgpu::ShaderModuleDescriptor,
+        options: RenderPipelineOptions<'_>,
     ) -> wgpu::RenderPipeline {
+        let RenderPipelineOptions {
+            vertex_entry,
+            fragment_entry,
+            color_format,
+            depth_format,
+            vertex_layouts,
+            shader,
+        } = options;
+
         let shader = device.create_shader_module(shader);
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -143,4 +159,13 @@ impl Pipelines {
             cache: None, // Cache shader compliation data (Only useful for android build targets)
         })
     }
+}
+
+struct RenderPipelineOptions<'a> {
+    vertex_entry: Option<&'a str>,
+    fragment_entry: Option<&'a str>,
+    color_format: wgpu::TextureFormat,
+    depth_format: Option<wgpu::TextureFormat>,
+    vertex_layouts: &'a [wgpu::VertexBufferLayout<'a>],
+    shader: wgpu::ShaderModuleDescriptor<'a>,
 }

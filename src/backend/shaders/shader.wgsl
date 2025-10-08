@@ -27,7 +27,7 @@ var<uniform> camera: CameraUniform;
 struct TransformUniform {
     matrix: mat4x4<f32>,
 };
-@group(1) @binding(0) // From transform_bind_group
+@group(1) @binding(1) // From transform_bind_group
 var<uniform> transform: TransformUniform;
 
 struct InstanceInput {

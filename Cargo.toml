@@ -34,6 +34,8 @@ egui = "0.32.1"
 tobj = { version = "3.2", default-features = false, features = ["async"]}
 fbx = "0.2.0"
 tokio = { version = "1.47.1", features = ["full"] }
+use = "0.0.1-pre.0"
+struct_as_array = "0.2.0"
 
 [build-dependencies]
 anyhow = "1.0"
