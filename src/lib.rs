@@ -6,8 +6,9 @@ use crate::backend::renderer::{
     gui, 
     gui_version1, 
     instance, 
+    input_mapper,
     keybind,
-    keybind::{CameraKeybind, KeybindHandler, TransformKeybind},
+    keybind::{CameraKeybind, KeybindHandler, TransformKeybind, Keybind, AppKeybind},
     lighting, 
     model,
     model::DrawModel,
@@ -30,8 +31,10 @@ use egui_winit::winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
+use log::Log;
 use std::collections::VecDeque;
 use std::sync::Arc;
+use winit::event_loop;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -116,6 +119,7 @@ pub struct State {
     egui_renderer: gui::EguiRenderer,
 
     is_rotation: bool,
+    is_fps_camera: bool,
 }
 
 impl State {
@@ -247,7 +251,6 @@ impl State {
             1,             // samples
             &window,       // winit Window
         );
-
         Ok(Self {
             surface,
             device,
@@ -266,7 +269,10 @@ impl State {
             engine_rendered_models_list,
 
             egui_renderer,
+
+            // Probs need to make into yaml or smth
             is_rotation: false,
+            is_fps_camera: false,
         })
     }
     // Supports resizing application
@@ -295,58 +301,37 @@ impl State {
         code: KeyCode,
         is_pressed: bool,
     ) -> anyhow::Result<()> {
+        // Have keybind handler (struct) spit out its current keybind (get current key bind (within update))
+        // if the key pressed has no keybind attached to it => get none
+        // Yeah i think this will work
+
+        let current_keybind = input_mapper::handle_key(code);
         let camera_controller = &mut self.bind_obj.camera.controller;
         let transform_controller = &mut self.bind_obj.transform.controller;
 
-        match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            (KeyCode::Space, true) => self.switch_render()?,
-            (KeyCode::KeyY, true) => self.switch_shape()?,
-            (KeyCode::KeyR, true) => self.is_rotation = !self.is_rotation,
+        if let Some(keybind) = current_keybind {
+            match keybind {
+                Keybind::App(app_keybind) => {
+                    if !is_pressed {
+                        return Ok(());
+                    }
+                    match app_keybind {
+                        AppKeybind::Exit => event_loop.exit(),
+                        AppKeybind::SwitchRender => self.switch_render()?,
+                        AppKeybind::SwitchScene => self.switch_shape()?,
+                        AppKeybind::ToggleRotationMode => self.is_rotation = !self.is_rotation,
+                        AppKeybind::ToggleCameraMode => self.is_fps_camera = !self.is_fps_camera,
+                    }
+                }
+                Keybind::Camera(camera_keybind) => {
+                    camera_controller.handle_keybind(&camera_keybind, is_pressed)?
+                }
+                Keybind::Transform(transform_keybind) => {
+                    transform_controller.handle_keybind(&transform_keybind, is_pressed)?
+                }
+            }
+        };
 
-            // FIX BY CREATING SUPER CONTROLLER and [keycode enum, keybind enum] assign table
-            // (PREVENT different controller from being able to access same keybinds)
-            (KeyCode::KeyW | KeyCode::ArrowUp, _) => {
-                camera_controller.handle_keybind(CameraKeybind::Forward, is_pressed)?;
-            }
-            (KeyCode::KeyA | KeyCode::ArrowLeft, _) => {
-                camera_controller.handle_keybind(CameraKeybind::Left, is_pressed)?;
-            }
-            (KeyCode::KeyS | KeyCode::ArrowDown, _) => {
-                camera_controller.handle_keybind(CameraKeybind::Backward, is_pressed)?;
-            }
-            (KeyCode::KeyD | KeyCode::ArrowRight, _) => {
-                camera_controller.handle_keybind(CameraKeybind::Right, is_pressed)?;
-            }
-            (KeyCode::KeyI, _) => {
-                transform_controller.handle_keybind(TransformKeybind::RotateX, is_pressed)?;
-            }
-            (KeyCode::KeyO, _) => {
-                transform_controller.handle_keybind(TransformKeybind::RotateY, is_pressed)?;
-            }
-            (KeyCode::KeyP, _) => {
-                transform_controller.handle_keybind(TransformKeybind::RotateZ, is_pressed)?;
-            }
-            (KeyCode::KeyK, _) => {
-                transform_controller.handle_keybind(TransformKeybind::TranslateX, is_pressed)?;
-            }
-            (KeyCode::KeyL, _) => {
-                transform_controller.handle_keybind(TransformKeybind::TranslateY, is_pressed)?;
-            }
-            (KeyCode::Semicolon, _) => {
-                transform_controller.handle_keybind(TransformKeybind::TranslateZ, is_pressed)?;
-            }
-            (KeyCode::Comma, _) => {
-                transform_controller.handle_keybind(TransformKeybind::ScaleX, is_pressed)?;
-            }
-            (KeyCode::Period, _) => {
-                transform_controller.handle_keybind(TransformKeybind::ScaleY, is_pressed)?;
-            }
-            (KeyCode::Slash, _) => {
-                transform_controller.handle_keybind(TransformKeybind::ScaleZ, is_pressed)?;
-            }
-            _ => {}
-        }
         Ok(())
     }
 
@@ -364,7 +349,7 @@ impl State {
     }
 
     // Tick method
-    fn update(&mut self) {
+    fn update(&mut self, delta_time: f32, event_loop: &ActiveEventLoop) {
         // Rotate light
         // let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
         // self.light_uniform.position =
@@ -411,15 +396,25 @@ impl State {
         // Update instances
         for model_instance in &mut self.models_instance_list.0 {
             // ROTATE INSTANCES
-            for instance in &mut model_instance.instances {
-                let rotation_amount = if self.is_rotation {
-                    ROTATION_SPEED
-                } else {
-                    0.0
-                };
-                let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(rotation_amount));
-                let current = instance.rotation;
-                instance.rotation = amount * current;
+
+            // Change to be more ergonomic (too many if statements)
+            if self.is_rotation {
+                for instance in &mut model_instance.instances {
+                    let rotation_amount = ROTATION_SPEED;
+                    let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(rotation_amount));
+                    let current = instance.rotation;
+                    instance.rotation = amount * current;
+                }
+            }
+
+            if self.is_fps_camera {
+                // Centre camera
+                self.window
+                    .set_cursor_position(winit::dpi::PhysicalPosition::new(
+                        self.config.width as f64 / 2.0,
+                        self.config.height as f64 / 2.0,
+                    ))
+                    .ok();
             }
 
             // INSTANCE UPDATED HERE
@@ -530,8 +525,8 @@ impl State {
                 gui_version1::show_gui(
                     ui,
                     &mut gui_version1::GuiOptions::default(),
+                    // Manual copying of state fields
                     &mut gui_version1::GuiState {
-                        // PROBS BAD TO DO CLONE
                         models_instance_list: &mut self.models_instance_list,
                         transform_object: &mut self.bind_obj.transform.object,
                         window: &self.window,
@@ -643,7 +638,7 @@ impl ApplicationHandler<State> for App {
         event: WindowEvent,
     ) {
         let state = match &mut self.state {
-            Some(canvas) => canvas,
+            Some(s) => s,
             None => return,
         };
 
@@ -676,14 +671,14 @@ impl ApplicationHandler<State> for App {
                 ..
             } => {
                 if let Err(e) = state.handle_key(event_loop, code, key_state.is_pressed()) {
-                    log::error!("Error key input! {}", e);
-                }
+                    log::error!("Incorrect key press {}", e);
+                };
             }
             _ => {}
         }
 
         state.egui_renderer.handle_input(&state.window, &event);
-        state.update();
+        state.update(16.67, event_loop); // Temporary hard coded tick speed
     }
 }
 

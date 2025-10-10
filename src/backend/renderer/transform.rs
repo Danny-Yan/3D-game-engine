@@ -3,6 +3,7 @@ use crate::keybind::TransformKeybind;
 use crate::util::{RadWrapper, ScaleValue, Vector3Wrapper};
 use anyhow::Ok;
 use cgmath::Matrix4;
+use std::clone::Clone;
 
 #[derive(Default, Copy, Clone)]
 pub struct Transform {
@@ -50,14 +51,14 @@ impl TransformUniform {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 struct TrueAxisTable {
     x: bool,
     y: bool,
     z: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct TransformController {
     rotation_speed: f32,
     translation_speed: f32,
@@ -115,7 +116,7 @@ impl TransformController {
 impl KeybindHandler<TransformKeybind> for TransformController {
     fn handle_keybind(
         &mut self,
-        keycode: TransformKeybind,
+        keycode: &TransformKeybind,
         is_pressed: bool,
     ) -> anyhow::Result<()> {
         // // TAHNK YOU KEVIN

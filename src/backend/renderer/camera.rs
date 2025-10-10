@@ -125,7 +125,7 @@ impl CameraController {
 }
 
 impl KeybindHandler<CameraKeybind> for CameraController {
-    fn handle_keybind(&mut self, keycode: CameraKeybind, is_pressed: bool) -> anyhow::Result<()> {
+    fn handle_keybind(&mut self, keycode: &CameraKeybind, is_pressed: bool) -> anyhow::Result<()> {
         // // TAHNK YOU KEVIN
         // let balls = keycode
         //     .cast_to()
