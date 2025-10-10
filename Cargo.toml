@@ -36,6 +36,8 @@ fbx = "0.2.0"
 tokio = { version = "1.47.1", features = ["full"] }
 use = "0.0.1-pre.0"
 struct_as_array = "0.2.0"
+num-traits = "0.2.19"
+num-derive = "0.4.2"
 
 [build-dependencies]
 anyhow = "1.0"

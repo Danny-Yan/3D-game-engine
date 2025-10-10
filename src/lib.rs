@@ -6,7 +6,6 @@ use crate::backend::renderer::{
     gui, 
     gui_version1, 
     instance, 
-    input_mapper,
     keybind,
     keybind::{CameraKeybind, KeybindHandler, TransformKeybind, Keybind, AppKeybind},
     lighting, 
@@ -120,6 +119,7 @@ pub struct State {
 
     is_rotation: bool,
     is_fps_camera: bool,
+    input_mapper: keybind::InputMapper,
 }
 
 impl State {
@@ -251,6 +251,9 @@ impl State {
             1,             // samples
             &window,       // winit Window
         );
+
+        let input_mapper = keybind::InputMapper::new();
+
         Ok(Self {
             surface,
             device,
@@ -273,6 +276,7 @@ impl State {
             // Probs need to make into yaml or smth
             is_rotation: false,
             is_fps_camera: false,
+            input_mapper,
         })
     }
     // Supports resizing application
@@ -305,7 +309,7 @@ impl State {
         // if the key pressed has no keybind attached to it => get none
         // Yeah i think this will work
 
-        let current_keybind = input_mapper::handle_key(code);
+        let current_keybind = self.input_mapper.handle_key(code);
         let camera_controller = &mut self.bind_obj.camera.controller;
         let transform_controller = &mut self.bind_obj.transform.controller;
 
@@ -320,14 +324,17 @@ impl State {
                         AppKeybind::SwitchRender => self.switch_render()?,
                         AppKeybind::SwitchScene => self.switch_shape()?,
                         AppKeybind::ToggleRotationMode => self.is_rotation = !self.is_rotation,
-                        AppKeybind::ToggleCameraMode => self.is_fps_camera = !self.is_fps_camera,
+                        AppKeybind::ToggleCameraMode => {
+                            self.switch_input_context();
+                            self.is_fps_camera = !self.is_fps_camera;
+                        }
                     }
                 }
                 Keybind::Camera(camera_keybind) => {
-                    camera_controller.handle_keybind(&camera_keybind, is_pressed)?
+                    camera_controller.handle_keybind(camera_keybind, is_pressed)?
                 }
                 Keybind::Transform(transform_keybind) => {
-                    transform_controller.handle_keybind(&transform_keybind, is_pressed)?
+                    transform_controller.handle_keybind(transform_keybind, is_pressed)?
                 }
             }
         };
@@ -342,6 +349,10 @@ impl State {
     fn switch_render(&mut self) -> anyhow::Result<()> {
         self.pipeline_deque.cycle()?;
         Ok(())
+    }
+
+    fn switch_input_context(&mut self) {
+        self.input_mapper.cycle_contexts();
     }
 
     fn handle_mouse_position(&mut self, position: &mut PhysicalPosition<f64>) {
