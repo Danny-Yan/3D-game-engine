@@ -1,9 +1,13 @@
+use crate::backend::renderer::camera::Camera;
+use crate::backend::renderer::controller::{ControllerUniform, GeneralController};
+use crate::backend::renderer::keybind::CameraKeybind;
 use crate::camera;
 use crate::lighting;
 use crate::texture;
 use crate::transform;
 use egui_wgpu::wgpu;
 use egui_wgpu::wgpu::util::DeviceExt;
+use std::collections::VecDeque;
 
 pub struct BindGroupLayouts {
     pub texture: wgpu::BindGroupLayout,
@@ -239,7 +243,7 @@ pub struct CameraBindGroupObject {
     pub object: camera::Camera,
     pub uniform: camera::CameraUniform,
     pub buffer: wgpu::Buffer,
-    pub controller: camera::CameraController,
+    pub controller: VecDeque<Box<dyn GeneralController<CameraKeybind, Camera>>>,
 }
 
 impl CameraBindGroupObject {
@@ -251,7 +255,7 @@ impl CameraBindGroupObject {
         };
 
         let mut uniform = camera::CameraUniform::new();
-        uniform.update_view_proj(&object);
+        uniform.update_matrix(&object);
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -259,8 +263,12 @@ impl CameraBindGroupObject {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let controller = camera::CameraController::new(0.1);
+        let editor_controller = camera::CameraControllerEditor::new(0.1);
+        let fps_controller = camera::CameraControllerFPS::new();
 
+        let controller_vec: Vec<Box<dyn GeneralController<CameraKeybind, Camera>>> =
+            vec![Box::new(editor_controller), Box::new(fps_controller)];
+        let controller = VecDeque::from(controller_vec);
         Self {
             object,
             uniform,

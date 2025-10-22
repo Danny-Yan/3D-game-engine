@@ -1,10 +1,11 @@
-use crate::keybind::{CameraKeybind, KeybindHandler, KeybindTrait};
-
-use wgpu::naga::valid::LiteralError;
-use winit::{
-    event::ElementState, event::KeyEvent, event::WindowEvent, keyboard::KeyCode,
-    keyboard::PhysicalKey,
+use crate::backend::renderer::controller::{
+    Controller, ControllerModel, ControllerUniform, MouseHandler,
 };
+use crate::keybind::{CameraKeybind, KeybindHandler};
+use cgmath::Point3;
+use cgmath::Vector3 as Vec3;
+use cgmath::prelude::*;
+use egui_winit::winit::dpi::PhysicalPosition;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
@@ -14,18 +15,19 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_co
     cgmath::Vector4::new(0.0, 0.0, 0.5, 1.0),
 );
 
+// Model ------------------------------------------------------------------
 pub struct Camera {
-    pub eye: cgmath::Point3<f32>,
-    pub target: cgmath::Point3<f32>,
-    pub up: cgmath::Vector3<f32>,
+    pub eye: Point3<f32>,
+    pub target: Point3<f32>,
+    pub up: Vec3<f32>,
     pub aspect: f32,
     pub fovy: f32,
     pub znear: f32,
     pub zfar: f32,
 }
 
-impl Camera {
-    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+impl ControllerModel for Camera {
+    fn to_matrix(&self) -> cgmath::Matrix4<f32> {
         // Moves world to be at position and rotation of the camera
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
         // Projects the camera's viewbox to rectangular frustum
@@ -66,13 +68,131 @@ impl CameraUniform {
             view_proj: cgmath::Matrix4::identity().into(),
         }
     }
+}
 
-    pub fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().into();
+impl ControllerUniform<Camera> for CameraUniform {
+    fn update_matrix(&mut self, model: &Camera) {
+        self.view_proj = model.to_matrix().into();
+    }
+}
+// -------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+pub struct CameraControllerFPS {
+    position: Point3<f32>,
+    forwards: Vec3<f32>,
+    right: Vec3<f32>,
+    up: Vec3<f32>,
+    yaw: f32,
+    pitch: f32,
+
+    walk_speed: f32,
+}
+
+impl Controller<Camera> for CameraControllerFPS {
+    fn update_model(&self, camera: &mut Camera) {
+        camera.up = self.up;
+        camera.eye = Point3::new(self.forwards.x, self.forwards.y, self.forwards.z);
+        camera.target = self.position;
+    }
+
+    fn update_controller(&mut self, camera: &Camera) {
+        self.up = camera.up;
+        self.forwards = camera.eye.to_vec();
+        self.position = camera.target;
     }
 }
 
-pub struct CameraController {
+impl KeybindHandler<CameraKeybind> for CameraControllerFPS {
+    fn handle_keybind(&mut self, keybind: &CameraKeybind, is_pressed: bool) -> anyhow::Result<()> {
+        match keybind {
+            CameraKeybind::Forward => {
+                self.position += self.forwards * self.walk_speed;
+                Ok(())
+            }
+            CameraKeybind::Left => {
+                self.position -= self.right * self.walk_speed;
+                Ok(())
+            }
+            CameraKeybind::Backward => {
+                self.position -= self.forwards * self.walk_speed;
+                Ok(())
+            }
+            CameraKeybind::Right => {
+                self.position += self.right * self.walk_speed;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl MouseHandler for CameraControllerFPS {
+    fn update_model_mouse(&mut self, position: PhysicalPosition<f64>) {
+        self.spin(position.x as f32, position.y as f32);
+    }
+}
+
+impl CameraControllerFPS {
+    pub fn new() -> Self {
+        let position = Point3::new(-5.0, 0.0, 2.0);
+        let forwards = Vec3::new(1.0, 0.0, 0.0);
+        let right = Vec3::new(0.0, -1.0, 0.0);
+        let up = Vec3::new(0.0, 0.0, 1.0);
+
+        let yaw = -90.0;
+        let pitch = 0.0;
+
+        Self {
+            position,
+            forwards,
+            right,
+            up,
+            yaw,
+            pitch,
+            walk_speed: 20.0,
+        }
+    }
+
+    pub fn spin(&mut self, delta_yaw: f32, delta_pitch: f32) {
+        self.yaw += delta_yaw;
+        self.pitch += delta_pitch;
+
+        if self.yaw > 360.0 {
+            self.yaw -= 360.0;
+        } else if self.yaw < 0.0 {
+            self.yaw += 360.0;
+        }
+
+        self.pitch = self.pitch.clamp(-89.0, 89.0);
+
+        let (yaw_rad, pitch_rad) = (self.yaw.to_radians(), self.pitch.to_radians());
+
+        let cos_yaw = yaw_rad.cos();
+        let sin_yaw = yaw_rad.sin();
+        let cos_pitch = pitch_rad.cos();
+        let sin_pitch = pitch_rad.sin();
+
+        self.forwards.x = cos_yaw * cos_pitch;
+        self.forwards.y = sin_yaw * cos_pitch;
+        self.forwards.z = sin_pitch;
+
+        // self.forwards = self.forwards.normalize();
+
+        self.up = Vec3::unit_z();
+
+        self.right = self.forwards.cross(Vec3::unit_z()).normalize();
+        self.up = self.right.cross(self.forwards).normalize();
+    }
+
+    pub fn walk(&mut self, delta_right: f32, delta_forward: f32) {
+        let z = self.position.z;
+        self.position += self.right * delta_right;
+        self.position += self.forwards * delta_forward;
+        self.position.z = z;
+    }
+}
+
+pub struct CameraControllerEditor {
     speed: f32,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
@@ -80,7 +200,7 @@ pub struct CameraController {
     is_right_pressed: bool,
 }
 
-impl CameraController {
+impl CameraControllerEditor {
     pub fn new(speed: f32) -> Self {
         Self {
             speed,
@@ -90,8 +210,10 @@ impl CameraController {
             is_right_pressed: false,
         }
     }
+}
 
-    pub fn update_camera(&self, camera: &mut Camera) {
+impl Controller<Camera> for CameraControllerEditor {
+    fn update_model(&self, camera: &mut Camera) {
         use cgmath::InnerSpace;
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();
@@ -122,9 +244,11 @@ impl CameraController {
             camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
         }
     }
+
+    fn update_controller(&mut self, model: &Camera) {}
 }
 
-impl KeybindHandler<CameraKeybind> for CameraController {
+impl KeybindHandler<CameraKeybind> for CameraControllerEditor {
     fn handle_keybind(&mut self, keycode: &CameraKeybind, is_pressed: bool) -> anyhow::Result<()> {
         // // TAHNK YOU KEVIN
         // let balls = keycode

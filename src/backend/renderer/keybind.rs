@@ -43,8 +43,6 @@ pub enum Keybind {
     App(AppKeybind),
 }
 
-// Keybind::Camera(CameraKeybind::Forward);
-
 pub trait KeybindHandler<T: KeybindTrait> {
     fn handle_keybind(&mut self, keybind: &T, is_pressed: bool) -> anyhow::Result<()>;
 }
@@ -106,6 +104,10 @@ impl InputMapper {
             Some(d2) => d2,
             None => FromPrimitive::from_u8(0).unwrap(),
         }
+    }
+
+    pub fn current_context(&self) -> u8 {
+        self.context as u8
     }
 
     pub fn handle_key(&mut self, keycode: KeyCode) -> Option<&Keybind> {

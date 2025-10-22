@@ -1,5 +1,6 @@
 pub mod bind_group_objects;
 pub mod camera;
+pub mod controller;
 pub mod gui;
 pub mod gui_version1;
 pub mod instance;

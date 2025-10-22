@@ -1,7 +1,7 @@
 use cgmath::Vector3 as Vec3;
 use cgmath::prelude::*;
 
-struct Camera {
+struct CameraFPS {
     position: Vec3<f32>,
     forwards: Vec3<f32>,
     right: Vec3<f32>,
@@ -14,7 +14,7 @@ struct Camera {
     zfar: f32,
 }
 
-impl Camera {
+impl CameraFPS {
     pub fn new() -> Self {
         let position = Vec3::new(-5.0, 0.0, 2.0);
         let forwards = Vec3::new(1.0, 0.0, 0.0);

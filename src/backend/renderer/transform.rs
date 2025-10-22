@@ -1,3 +1,4 @@
+use crate::backend::renderer::controller::{Controller, ControllerModel, ControllerUniform};
 use crate::keybind::KeybindHandler;
 use crate::keybind::TransformKeybind;
 use crate::util::{RadWrapper, ScaleValue, Vector3Wrapper};
@@ -12,8 +13,8 @@ pub struct Transform {
     pub scale: Vector3Wrapper<ScaleValue>,
 }
 
-impl Transform {
-    pub fn to_matrix(&self) -> cgmath::Matrix4<f32> {
+impl ControllerModel for Transform {
+    fn to_matrix(&self) -> cgmath::Matrix4<f32> {
         let rotation = &self.rotation.0;
         let translation = &self.translation.0;
         let scale = &self.scale.0;
@@ -37,7 +38,6 @@ impl Transform {
 pub struct TransformUniform {
     matrix: [[f32; 4]; 4],
 }
-
 impl TransformUniform {
     pub fn new() -> Self {
         use cgmath::SquareMatrix;
@@ -45,8 +45,10 @@ impl TransformUniform {
             matrix: cgmath::Matrix4::identity().into(),
         }
     }
+}
 
-    pub fn update_matrix(&mut self, transform: &Transform) {
+impl ControllerUniform<Transform> for TransformUniform {
+    fn update_matrix(&mut self, transform: &Transform) {
         self.matrix = transform.to_matrix().into();
     }
 }
@@ -94,8 +96,10 @@ impl TransformController {
             false => 0.0,
         }
     }
+}
 
-    fn update_keyboard_transform(&mut self, transform: &mut Transform) {
+impl Controller<Transform> for TransformController {
+    fn update_model(&self, transform: &mut Transform) {
         let translation = &mut transform.translation.0;
         let rotation = &mut transform.rotation.0;
         let scale = &mut transform.scale.0;

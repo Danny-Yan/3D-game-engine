@@ -3,11 +3,12 @@ mod backend;
 use crate::backend::renderer::{
     bind_group_objects, 
     camera, 
+    controller::{ControllerUniform},
     gui, 
     gui_version1, 
     instance, 
     keybind,
-    keybind::{CameraKeybind, KeybindHandler, TransformKeybind, Keybind, AppKeybind},
+    keybind::{KeybindHandler, Keybind, AppKeybind},
     lighting, 
     model,
     model::DrawModel,
@@ -30,10 +31,8 @@ use egui_winit::winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
-use log::Log;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use winit::event_loop;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -305,10 +304,6 @@ impl State {
         code: KeyCode,
         is_pressed: bool,
     ) -> anyhow::Result<()> {
-        // Have keybind handler (struct) spit out its current keybind (get current key bind (within update))
-        // if the key pressed has no keybind attached to it => get none
-        // Yeah i think this will work
-
         let current_keybind = self.input_mapper.handle_key(code);
         let camera_controller = &mut self.bind_obj.camera.controller;
         let transform_controller = &mut self.bind_obj.transform.controller;
@@ -325,14 +320,14 @@ impl State {
                         AppKeybind::SwitchScene => self.switch_shape()?,
                         AppKeybind::ToggleRotationMode => self.is_rotation = !self.is_rotation,
                         AppKeybind::ToggleCameraMode => {
-                            self.switch_input_context();
-                            self.is_fps_camera = !self.is_fps_camera;
+                            self.switch_input_context()?;
                         }
                     }
                 }
-                Keybind::Camera(camera_keybind) => {
-                    camera_controller.handle_keybind(camera_keybind, is_pressed)?
-                }
+                Keybind::Camera(camera_keybind) => camera_controller
+                    .front_mut()
+                    .ok_or(wgpu::SurfaceError::OutOfMemory)?
+                    .handle_keybind(camera_keybind, is_pressed)?,
                 Keybind::Transform(transform_keybind) => {
                     transform_controller.handle_keybind(transform_keybind, is_pressed)?
                 }
@@ -351,8 +346,23 @@ impl State {
         Ok(())
     }
 
-    fn switch_input_context(&mut self) {
+    fn switch_input_context(&mut self) -> anyhow::Result<()> {
         self.input_mapper.cycle_contexts();
+        self.switch_camera()
+    }
+
+    fn switch_camera(&mut self) -> anyhow::Result<()> {
+        self.is_fps_camera = !self.is_fps_camera;
+        self.bind_obj.camera.controller.cycle()?;
+
+        self.bind_obj
+            .camera
+            .controller
+            .front_mut()
+            .ok_or(wgpu::SurfaceError::OutOfMemory)?
+            .update_controller(&self.bind_obj.camera.object);
+
+        Ok(())
     }
 
     fn handle_mouse_position(&mut self, position: &mut PhysicalPosition<f64>) {
@@ -360,7 +370,7 @@ impl State {
     }
 
     // Tick method
-    fn update(&mut self, delta_time: f32, event_loop: &ActiveEventLoop) {
+    fn update(&mut self, delta_time: f32, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
         // Rotate light
         // let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
         // self.light_uniform.position =
@@ -377,11 +387,13 @@ impl State {
         self.bind_obj
             .camera
             .controller
-            .update_camera(&mut self.bind_obj.camera.object);
+            .front_mut()
+            .ok_or(wgpu::SurfaceError::OutOfMemory)?
+            .update_model(&mut self.bind_obj.camera.object);
         self.bind_obj
             .camera
             .uniform
-            .update_view_proj(&self.bind_obj.camera.object);
+            .update_matrix(&self.bind_obj.camera.object);
 
         self.queue.write_buffer(
             &self.bind_obj.camera.buffer,
@@ -440,6 +452,8 @@ impl State {
                 bytemuck::cast_slice(&instance_data),
             );
         }
+
+        Ok(())
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
