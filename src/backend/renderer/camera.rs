@@ -87,19 +87,20 @@ pub struct CameraControllerFPS {
     pitch: f32,
 
     walk_speed: f32,
+    sensitivity: f32,
 }
 
 impl Controller<Camera> for CameraControllerFPS {
     fn update_model(&self, camera: &mut Camera) {
         camera.up = self.up;
-        camera.eye = Point3::new(self.forwards.x, self.forwards.y, self.forwards.z);
-        camera.target = self.position;
+        camera.eye = self.position;
+        camera.target = self.position + self.forwards;
     }
 
     fn update_controller(&mut self, camera: &Camera) {
         self.up = camera.up;
-        self.forwards = camera.eye.to_vec();
-        self.position = camera.target;
+        self.forwards = camera.target - camera.eye;
+        self.position = camera.eye;
     }
 }
 
@@ -127,29 +128,34 @@ impl KeybindHandler<CameraKeybind> for CameraControllerFPS {
 }
 
 impl MouseHandler for CameraControllerFPS {
-    fn update_model_mouse(&mut self, position: PhysicalPosition<f64>) {
-        self.spin(position.x as f32, position.y as f32);
+    fn update_model_mouse(
+        &mut self,
+        position: PhysicalPosition<f64>,
+        center: PhysicalPosition<f64>,
+    ) {
+        self.spin(
+            ((center.x - position.x) as f32) * self.sensitivity / 50.0,
+            (center.y - position.y) as f32,
+        );
     }
 }
 
 impl CameraControllerFPS {
     pub fn new() -> Self {
-        let position = Point3::new(-5.0, 0.0, 2.0);
+        let position = Point3::new(0.0, 0.0, 0.0);
         let forwards = Vec3::new(1.0, 0.0, 0.0);
-        let right = Vec3::new(0.0, -1.0, 0.0);
-        let up = Vec3::new(0.0, 0.0, 1.0);
-
-        let yaw = -90.0;
-        let pitch = 0.0;
+        let right = Vec3::new(0.0, 0.0, 1.0);
+        let up = Vec3::new(0.0, 1.0, 0.0);
 
         Self {
             position,
             forwards,
             right,
             up,
-            yaw,
-            pitch,
+            yaw: 0.0,
+            pitch: 0.0,
             walk_speed: 20.0,
+            sensitivity: 50.0,
         }
     }
 
@@ -173,14 +179,12 @@ impl CameraControllerFPS {
         let sin_pitch = pitch_rad.sin();
 
         self.forwards.x = cos_yaw * cos_pitch;
-        self.forwards.y = sin_yaw * cos_pitch;
-        self.forwards.z = sin_pitch;
+        self.forwards.z = -sin_yaw * cos_pitch;
+        self.forwards.y = sin_pitch;
+        self.forwards = self.forwards.normalize();
 
-        // self.forwards = self.forwards.normalize();
-
-        self.up = Vec3::unit_z();
-
-        self.right = self.forwards.cross(Vec3::unit_z()).normalize();
+        self.up = Vec3::unit_y();
+        self.right = self.forwards.cross(Vec3::unit_y()).normalize();
         self.up = self.right.cross(self.forwards).normalize();
     }
 
@@ -275,3 +279,5 @@ impl KeybindHandler<CameraKeybind> for CameraControllerEditor {
         }
     }
 }
+
+impl MouseHandler for CameraControllerEditor {}

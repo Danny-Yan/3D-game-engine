@@ -1,16 +1,27 @@
+use egui_wgpu::wgpu;
+use serde::de::value;
 use std::collections::VecDeque;
 
-use serde::de::value;
-
-pub trait Cycle {
+pub trait Cycle<T> {
     fn cycle(&mut self) -> anyhow::Result<()>;
+    fn front_mut_err(&mut self) -> anyhow::Result<&mut T>;
+    fn front_err(&self) -> anyhow::Result<&T>;
 }
 
-impl<T> Cycle for VecDeque<T> {
+impl<T> Cycle<T> for VecDeque<T> {
     fn cycle(&mut self) -> anyhow::Result<()> {
         let front_item = self.pop_front().ok_or(wgpu::SurfaceError::OutOfMemory)?;
         self.push_back(front_item);
         Ok(())
+    }
+
+    fn front_mut_err(&mut self) -> anyhow::Result<&mut T> {
+        self.front_mut()
+            .ok_or(wgpu::SurfaceError::OutOfMemory.into())
+    }
+
+    fn front_err(&self) -> anyhow::Result<&T> {
+        self.front().ok_or(wgpu::SurfaceError::OutOfMemory.into())
     }
 }
 

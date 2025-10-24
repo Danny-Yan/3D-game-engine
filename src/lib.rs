@@ -358,15 +358,30 @@ impl State {
         self.bind_obj
             .camera
             .controller
-            .front_mut()
-            .ok_or(wgpu::SurfaceError::OutOfMemory)?
+            .front_mut_err()?
             .update_controller(&self.bind_obj.camera.object);
 
         Ok(())
     }
 
-    fn handle_mouse_position(&mut self, position: &mut PhysicalPosition<f64>) {
+    fn handle_mouse_position(
+        &mut self,
+        position: &mut PhysicalPosition<f64>,
+    ) -> anyhow::Result<()> {
         self.mouse_position = *position;
+        self.bind_obj
+            .camera
+            .controller
+            .front_mut_err()?
+            .update_model_mouse(
+                *position,
+                PhysicalPosition {
+                    x: self.config.width as f64 / 2.0,
+                    y: self.config.height as f64 / 2.0,
+                },
+            );
+
+        Ok(())
     }
 
     // Tick method
@@ -416,6 +431,16 @@ impl State {
         // World
         self.world.update();
 
+        if self.is_fps_camera {
+            // Centre camera
+            self.window
+                .set_cursor_position(winit::dpi::PhysicalPosition::new(
+                    self.config.width as f64 / 2.0,
+                    self.config.height as f64 / 2.0,
+                ))
+                .ok();
+        }
+
         // Update instances
         for model_instance in &mut self.models_instance_list.0 {
             // ROTATE INSTANCES
@@ -428,16 +453,6 @@ impl State {
                     let current = instance.rotation;
                     instance.rotation = amount * current;
                 }
-            }
-
-            if self.is_fps_camera {
-                // Centre camera
-                self.window
-                    .set_cursor_position(winit::dpi::PhysicalPosition::new(
-                        self.config.width as f64 / 2.0,
-                        self.config.height as f64 / 2.0,
-                    ))
-                    .ok();
             }
 
             // INSTANCE UPDATED HERE
@@ -510,6 +525,8 @@ impl State {
 
         // Load render pipeline
         render_pass.set_pipeline(
+            // ??????????????????????????????????????????????
+            // Why can't I change this to front_err()
             self.pipeline_deque
                 .front()
                 .ok_or(wgpu::SurfaceError::OutOfMemory)?,
@@ -684,7 +701,9 @@ impl ApplicationHandler<State> for App {
                 }
             }
             WindowEvent::CursorMoved { mut position, .. } => {
-                state.handle_mouse_position(&mut position)
+                if let Err(e) = state.handle_mouse_position(&mut position) {
+                    log::error!("Mouse error {}", e);
+                }
             }
             WindowEvent::KeyboardInput {
                 event:
@@ -703,7 +722,9 @@ impl ApplicationHandler<State> for App {
         }
 
         state.egui_renderer.handle_input(&state.window, &event);
-        state.update(16.67, event_loop); // Temporary hard coded tick speed
+        if let Err(e) = state.update(16.67, event_loop) {
+            log::error!("Update error {}", e);
+        }; // Temporary hard coded tick speed
     }
 }
 

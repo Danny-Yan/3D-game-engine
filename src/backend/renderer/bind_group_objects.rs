@@ -1,6 +1,4 @@
-use crate::backend::renderer::camera::Camera;
-use crate::backend::renderer::controller::{ControllerUniform, GeneralController};
-use crate::backend::renderer::keybind::CameraKeybind;
+use crate::backend::renderer::controller::{CameraControllerTrait, ControllerUniform};
 use crate::camera;
 use crate::lighting;
 use crate::texture;
@@ -243,7 +241,7 @@ pub struct CameraBindGroupObject {
     pub object: camera::Camera,
     pub uniform: camera::CameraUniform,
     pub buffer: wgpu::Buffer,
-    pub controller: VecDeque<Box<dyn GeneralController<CameraKeybind, Camera>>>,
+    pub controller: VecDeque<Box<dyn CameraControllerTrait>>,
 }
 
 impl CameraBindGroupObject {
@@ -266,7 +264,7 @@ impl CameraBindGroupObject {
         let editor_controller = camera::CameraControllerEditor::new(0.1);
         let fps_controller = camera::CameraControllerFPS::new();
 
-        let controller_vec: Vec<Box<dyn GeneralController<CameraKeybind, Camera>>> =
+        let controller_vec: Vec<Box<dyn CameraControllerTrait>> =
             vec![Box::new(editor_controller), Box::new(fps_controller)];
         let controller = VecDeque::from(controller_vec);
         Self {

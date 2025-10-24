@@ -1,4 +1,7 @@
-use crate::backend::renderer::keybind::{KeybindHandler, KeybindTrait};
+use crate::backend::renderer::{
+    camera::Camera,
+    keybind::{CameraKeybind, KeybindHandler, KeybindTrait},
+};
 use egui_winit::winit::dpi::PhysicalPosition;
 
 // Model itself
@@ -20,17 +23,22 @@ pub trait ControllerUniform<T: ControllerModel> {
 }
 
 pub trait MouseHandler {
-    fn update_model_mouse(&mut self, position: PhysicalPosition<f64>);
+    fn update_model_mouse(
+        &mut self,
+        position: PhysicalPosition<f64>,
+        center: PhysicalPosition<f64>,
+    ) {
+    }
 }
 
 // General controller trait (model + uniform + controller)
-pub trait GeneralController<T, U>: KeybindHandler<T> + Controller<U>
+pub trait GeneralControllerTrait<T, U>: KeybindHandler<T> + Controller<U>
 where
     T: KeybindTrait,
     U: ControllerModel,
 {
 }
-impl<W, T, U> GeneralController<T, U> for W
+impl<W, T, U> GeneralControllerTrait<T, U> for W
 where
     T: KeybindTrait,
     U: ControllerModel,
@@ -38,9 +46,19 @@ where
 {
 }
 
+pub trait CameraControllerTrait:
+    GeneralControllerTrait<CameraKeybind, Camera> + MouseHandler
+{
+}
+
+impl<W> CameraControllerTrait for W where
+    W: GeneralControllerTrait<CameraKeybind, Camera> + MouseHandler
+{
+}
+
 // General controller + keybind trait struct
 pub struct CombinedControllerStruct<T: ControllerModel, U: KeybindTrait> {
     pub model: T,
     pub uniform: Box<dyn ControllerUniform<T>>,
-    pub controller: Vec<Box<dyn GeneralController<U, T>>>,
+    pub controller: Vec<Box<dyn GeneralControllerTrait<U, T>>>,
 }
