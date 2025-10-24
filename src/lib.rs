@@ -397,6 +397,15 @@ impl State {
         //     0,
         //     bytemuck::cast_slice(&[self.light_uniform]),
         // );
+        if self.is_fps_camera {
+            // Centre camera
+            self.window
+                .set_cursor_position(winit::dpi::PhysicalPosition::new(
+                    self.config.width as f64 / 2.0,
+                    self.config.height as f64 / 2.0,
+                ))
+                .ok();
+        }
 
         // Camera
         self.bind_obj
@@ -430,16 +439,6 @@ impl State {
 
         // World
         self.world.update();
-
-        if self.is_fps_camera {
-            // Centre camera
-            self.window
-                .set_cursor_position(winit::dpi::PhysicalPosition::new(
-                    self.config.width as f64 / 2.0,
-                    self.config.height as f64 / 2.0,
-                ))
-                .ok();
-        }
 
         // Update instances
         for model_instance in &mut self.models_instance_list.0 {

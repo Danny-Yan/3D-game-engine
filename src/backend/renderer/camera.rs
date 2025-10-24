@@ -106,24 +106,30 @@ impl Controller<Camera> for CameraControllerFPS {
 
 impl KeybindHandler<CameraKeybind> for CameraControllerFPS {
     fn handle_keybind(&mut self, keybind: &CameraKeybind, is_pressed: bool) -> anyhow::Result<()> {
+        #[allow(unreachable_patterns)]
         match keybind {
             CameraKeybind::Forward => {
                 self.position += self.forwards * self.walk_speed;
-                Ok(())
             }
             CameraKeybind::Left => {
                 self.position -= self.right * self.walk_speed;
-                Ok(())
             }
             CameraKeybind::Backward => {
                 self.position -= self.forwards * self.walk_speed;
-                Ok(())
             }
             CameraKeybind::Right => {
                 self.position += self.right * self.walk_speed;
-                Ok(())
             }
+            CameraKeybind::Up => {
+                self.position += self.up * self.walk_speed;
+            }
+            CameraKeybind::Down => {
+                self.position -= self.up * self.walk_speed;
+            }
+            _ => {}
         }
+
+        Ok(())
     }
 }
 
@@ -154,7 +160,7 @@ impl CameraControllerFPS {
             up,
             yaw: 0.0,
             pitch: 0.0,
-            walk_speed: 20.0,
+            walk_speed: 0.1,
             sensitivity: 50.0,
         }
     }
@@ -189,10 +195,10 @@ impl CameraControllerFPS {
     }
 
     pub fn walk(&mut self, delta_right: f32, delta_forward: f32) {
-        let z = self.position.z;
+        let y = self.position.y;
         self.position += self.right * delta_right;
         self.position += self.forwards * delta_forward;
-        self.position.z = z;
+        self.position.y = y;
     }
 }
 
@@ -259,6 +265,7 @@ impl KeybindHandler<CameraKeybind> for CameraControllerEditor {
         //     .cast_to()
         //     .downcast_ref::<CameraKeybind>()
         //     .ok_or(wgpu::wgc::validation::InputError::Missing)?;
+        #[allow(unreachable_patterns)]
         match keycode {
             CameraKeybind::Forward => {
                 self.is_forward_pressed = is_pressed;
@@ -276,6 +283,7 @@ impl KeybindHandler<CameraKeybind> for CameraControllerEditor {
                 self.is_right_pressed = is_pressed;
                 Ok(())
             }
+            _ => Ok(()),
         }
     }
 }

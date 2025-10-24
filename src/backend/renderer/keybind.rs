@@ -9,6 +9,8 @@ pub enum CameraKeybind {
     Backward,
     Left,
     Right,
+    Up,
+    Down,
 }
 
 pub enum TransformKeybind {
@@ -78,13 +80,21 @@ impl InputMapper {
         ]);
 
         #[rustfmt::skip]
-        let camera_context = HashMap::from([
+        let camera_fps_context = HashMap::from([
             (KeyCode::Escape,       Keybind::App(AppKeybind::Exit)),
             (KeyCode::KeyX,         Keybind::App(AppKeybind::ToggleCameraMode)),
+            (KeyCode::KeyW,         Keybind::Camera(CameraKeybind::Forward)),
+            (KeyCode::ArrowUp,      Keybind::Camera(CameraKeybind::Forward)),
+            (KeyCode::KeyS,         Keybind::Camera(CameraKeybind::Backward)),
+            (KeyCode::ArrowDown,    Keybind::Camera(CameraKeybind::Backward)),
+            (KeyCode::KeyA,         Keybind::Camera(CameraKeybind::Left)),
+            (KeyCode::ArrowLeft,    Keybind::Camera(CameraKeybind::Left)),
+            (KeyCode::KeyD,         Keybind::Camera(CameraKeybind::Right)),
+            (KeyCode::ArrowRight,   Keybind::Camera(CameraKeybind::Right)),
         ]);
 
         let context_table = HashMap::from([
-            (InputContexts::Camera, camera_context),
+            (InputContexts::Camera, camera_fps_context),
             (InputContexts::Editor, editor_context),
         ]);
 
