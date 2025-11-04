@@ -34,7 +34,7 @@ impl Pipelines {
         let _depth_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("../Shaders/shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
             };
             // Loading shaders
             // Shader shortcut for this
@@ -61,7 +61,7 @@ impl Pipelines {
         let _main_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("../Shaders/shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
             };
             Pipelines::create_render_pipeline(
                 device,
