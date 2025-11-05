@@ -29,10 +29,11 @@ use egui_winit::winit::{
     event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
-    window::Window,
+    window::{CursorGrabMode, Window},
 };
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::{thread, time::Duration};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -355,6 +356,12 @@ impl State {
         self.is_fps_camera = !self.is_fps_camera;
         self.bind_obj.camera.controller.cycle()?;
 
+        if self.is_fps_camera {
+            self.window.set_cursor_grab(CursorGrabMode::Locked)?
+        } else {
+            self.window.set_cursor_grab(CursorGrabMode::None)?
+        }
+
         self.bind_obj
             .camera
             .controller
@@ -399,12 +406,16 @@ impl State {
         // );
         if self.is_fps_camera {
             // Centre camera
+            self.window.set_cursor_grab(CursorGrabMode::Locked)?;
+
+            thread::sleep(Duration::from_millis(delta_time as u64));
             self.window
                 .set_cursor_position(winit::dpi::PhysicalPosition::new(
                     self.config.width as f64 / 2.0,
                     self.config.height as f64 / 2.0,
-                ))
-                .ok();
+                ))?;
+
+            self.window.set_cursor_grab(CursorGrabMode::None)?;
         }
 
         // Camera
@@ -466,7 +477,6 @@ impl State {
                 bytemuck::cast_slice(&instance_data),
             );
         }
-
         Ok(())
     }
 
