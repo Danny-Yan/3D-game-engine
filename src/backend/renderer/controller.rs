@@ -2,6 +2,7 @@ use crate::backend::renderer::{
     camera::Camera,
     keybind::{CameraKeybind, KeybindHandler, KeybindTrait},
 };
+use cgmath::Vector2;
 use egui_winit::winit::dpi::PhysicalPosition;
 
 // Model itself
@@ -23,12 +24,7 @@ pub trait ControllerUniform<T: ControllerModel> {
 }
 
 pub trait MouseHandler {
-    fn update_model_mouse(
-        &mut self,
-        position: PhysicalPosition<f64>,
-        center: PhysicalPosition<f64>,
-    ) {
-    }
+    fn update_model_mouse(&mut self, delta: &(f64, f64)) {}
 }
 
 // General controller trait (model + uniform + controller)

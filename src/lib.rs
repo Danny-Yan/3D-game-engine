@@ -357,7 +357,8 @@ impl State {
         self.bind_obj.camera.controller.cycle()?;
 
         if self.is_fps_camera {
-            self.window.set_cursor_grab(CursorGrabMode::Locked)?
+            self.window.set_cursor_visible(false);
+            self.window.set_cursor_grab(CursorGrabMode::Locked)?;
         } else {
             self.window.set_cursor_grab(CursorGrabMode::None)?
         }
@@ -371,23 +372,13 @@ impl State {
         Ok(())
     }
 
-    fn handle_mouse_position(
-        &mut self,
-        position: &mut PhysicalPosition<f64>,
-    ) -> anyhow::Result<()> {
-        self.mouse_position = *position;
+    fn handle_mouse_position(&mut self, delta: &(f64, f64)) -> anyhow::Result<()> {
+        // self.mouse_position = *position;
         self.bind_obj
             .camera
             .controller
             .front_mut_err()?
-            .update_model_mouse(
-                *position,
-                PhysicalPosition {
-                    x: self.config.width as f64 / 2.0,
-                    y: self.config.height as f64 / 2.0,
-                },
-            );
-
+            .update_model_mouse(delta);
         Ok(())
     }
 
@@ -404,19 +395,6 @@ impl State {
         //     0,
         //     bytemuck::cast_slice(&[self.light_uniform]),
         // );
-        if self.is_fps_camera {
-            // Centre camera
-            self.window.set_cursor_grab(CursorGrabMode::Locked)?;
-
-            thread::sleep(Duration::from_millis(delta_time as u64));
-            self.window
-                .set_cursor_position(winit::dpi::PhysicalPosition::new(
-                    self.config.width as f64 / 2.0,
-                    self.config.height as f64 / 2.0,
-                ))?;
-
-            self.window.set_cursor_grab(CursorGrabMode::None)?;
-        }
 
         // Camera
         self.bind_obj
@@ -682,6 +660,27 @@ impl ApplicationHandler<State> for App {
         self.state = Some(event);
     }
 
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        let state = match &mut self.state {
+            Some(s) => s,
+            _ => return,
+        };
+
+        match event {
+            winit::event::DeviceEvent::MouseMotion { delta } => {
+                if let Err(e) = state.handle_mouse_position(&delta) {
+                    log::error!("Mouse error {}", e);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -690,7 +689,7 @@ impl ApplicationHandler<State> for App {
     ) {
         let state = match &mut self.state {
             Some(s) => s,
-            None => return,
+            _ => return,
         };
 
         match event {
@@ -707,11 +706,6 @@ impl ApplicationHandler<State> for App {
                     Err(e) => {
                         log::error!("Unable to render {}", e);
                     }
-                }
-            }
-            WindowEvent::CursorMoved { mut position, .. } => {
-                if let Err(e) = state.handle_mouse_position(&mut position) {
-                    log::error!("Mouse error {}", e);
                 }
             }
             WindowEvent::KeyboardInput {

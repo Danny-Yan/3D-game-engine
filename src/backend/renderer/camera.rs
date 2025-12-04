@@ -2,9 +2,9 @@ use crate::backend::renderer::controller::{
     Controller, ControllerModel, ControllerUniform, MouseHandler,
 };
 use crate::keybind::{CameraKeybind, KeybindHandler};
-use cgmath::Point3;
 use cgmath::Vector3 as Vec3;
 use cgmath::prelude::*;
+use cgmath::{Point3, Vector2};
 use egui_winit::winit::dpi::PhysicalPosition;
 
 #[rustfmt::skip]
@@ -134,14 +134,10 @@ impl KeybindHandler<CameraKeybind> for CameraControllerFPS {
 }
 
 impl MouseHandler for CameraControllerFPS {
-    fn update_model_mouse(
-        &mut self,
-        position: PhysicalPosition<f64>,
-        center: PhysicalPosition<f64>,
-    ) {
+    fn update_model_mouse(&mut self, delta: &(f64, f64)) {
         self.spin(
-            ((center.x - position.x) as f32) * self.sensitivity / 50.0,
-            (center.y - position.y) as f32,
+            (-delta.0 as f32) * self.sensitivity / 50.0,
+            (-delta.1 as f32) * self.sensitivity / 100.0,
         );
     }
 }
@@ -161,7 +157,7 @@ impl CameraControllerFPS {
             yaw: 0.0,
             pitch: 0.0,
             walk_speed: 0.1,
-            sensitivity: 50.0,
+            sensitivity: 25.0,
         }
     }
 
