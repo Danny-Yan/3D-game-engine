@@ -1,5 +1,6 @@
+use crate::backend::model::camera::{camera_controller_array, camera_model};
+
 use crate::backend::renderer::controller::{CameraControllerTrait, ControllerUniform};
-use crate::camera;
 use crate::lighting;
 use crate::texture;
 use crate::transform;
@@ -238,8 +239,8 @@ impl GPUBindGroupObjects {
 }
 
 pub struct CameraBindGroupObject {
-    pub object: camera::Camera,
-    pub uniform: camera::CameraUniform,
+    pub object: camera_model::Camera,
+    pub uniform: camera_model::CameraUniform,
     pub buffer: wgpu::Buffer,
     pub controller: VecDeque<Box<dyn CameraControllerTrait>>,
 }
@@ -247,12 +248,12 @@ pub struct CameraBindGroupObject {
 impl CameraBindGroupObject {
     pub fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
         // CAMERA -----------------------------------
-        let object = camera::Camera {
+        let object = camera_model::Camera {
             aspect: config.width as f32 / config.height as f32,
             ..Default::default()
         };
 
-        let mut uniform = camera::CameraUniform::new();
+        let mut uniform = camera_model::CameraUniform::new();
         uniform.update_matrix(&object);
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -261,18 +262,33 @@ impl CameraBindGroupObject {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let editor_controller = camera::CameraControllerEditor::new(0.1);
-        let fps_controller = camera::CameraControllerFPS::new();
-
         let controller_vec: Vec<Box<dyn CameraControllerTrait>> =
-            vec![Box::new(editor_controller), Box::new(fps_controller)];
+            camera_controller_array::CameraControllerArray::default().0;
+
         let controller = VecDeque::from(controller_vec);
+
         Self {
             object,
             uniform,
             buffer,
             controller,
         }
+    }
+
+    /**
+     * Update camera model and add it to buffer queue
+     */
+    pub fn update(&mut self, queue: &mut wgpu::Queue) -> anyhow::Result<()> {
+        self.controller
+            .front_mut()
+            .ok_or(wgpu::SurfaceError::OutOfMemory)?
+            .update_model(&mut self.object);
+
+        self.uniform.update_matrix(&self.object);
+
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
+
+        Ok(())
     }
 }
 
@@ -305,6 +321,23 @@ impl TransformBindGroupObject {
             buffer,
             controller,
         }
+    }
+
+    /**
+     * Update model and write to buffer
+     */
+    pub fn update(&mut self, queue: &mut wgpu::Queue) -> anyhow::Result<()> {
+        // Used for transformation keybindings to pass to Object
+        // self.bind_obj
+        //     .transform
+        //     .controller
+        //     .update_model(&mut self.bind_obj.transform.object);
+
+        self.uniform.update_matrix(&self.object);
+
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
+
+        Ok(())
     }
 }
 

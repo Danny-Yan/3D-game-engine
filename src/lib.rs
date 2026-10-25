@@ -1,23 +1,22 @@
 mod backend;
 #[rustfmt::skip]
-use crate::backend::renderer::{
-    bind_group_objects, 
-    camera, 
-    controller::{ControllerUniform},
-    gui, 
-    gui_version1, 
-    instance, 
-    keybind,
-    keybind::{KeybindHandler, Keybind, AppKeybind},
-    lighting, 
-    model,
-    model::DrawModel,
-    pipeline, 
-    resources, 
-    texture, 
-    transform, 
-    util,
-    util::Cycle,
+use crate::backend::{
+    model::gui::{gui_renderer, gui_version1},
+    renderer::{
+        bind_group_objects,  
+        instance, 
+        keybind,
+        keybind::{KeybindHandler, Keybind, AppKeybind},
+        lighting, 
+        model,
+        model::DrawModel,
+        pipeline, 
+        resources, 
+        texture, 
+        transform, 
+        util,
+        util::Cycle,
+    }
 };
 use cgmath::prelude::*;
 use egui_wgpu::ScreenDescriptor;
@@ -33,7 +32,6 @@ use egui_winit::winit::{
 };
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::{thread, time::Duration};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -115,7 +113,7 @@ pub struct State {
     world: World,
     models_instance_list: model::ModelInstanceList,
     engine_rendered_models_list: model::ModelInstanceList,
-    egui_renderer: gui::EguiRenderer,
+    egui_renderer: gui_renderer::EguiRenderer,
 
     is_rotation: bool,
     is_fps_camera: bool,
@@ -123,8 +121,6 @@ pub struct State {
 }
 
 impl State {
-    // We don't need this to be async right now,
-    // but we will in the next tutorial
     pub async fn new(window: Arc<Window>) -> anyhow::Result<State> {
         let size = window.inner_size();
 
@@ -164,8 +160,7 @@ impl State {
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
                 required_features: wgpu::Features::empty(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
+                // WebGL doesn't support all of wgpu's features
                 // adapter.features() or device.features() => Show all features of the GPU used
                 required_limits: if cfg!(target_arch = "wasm32") {
                     wgpu::Limits::downlevel_webgl2_defaults()
@@ -178,9 +173,8 @@ impl State {
             .await?;
 
         let surface_caps = surface.get_capabilities(&adapter);
-        // Shader code in this tutorial assumes an sRGB surface texture. Using a different
-        // one will result in all the colors coming out darker. If you want to support non
-        // sRGB surfaces, you'll need to account for that when drawing to the frame.
+        // Shader code assumes an sRGB surface texture. Using a different
+        // one will result in all the colors coming out darker.
 
         let surface_format = surface_caps
             .formats
@@ -216,6 +210,7 @@ impl State {
         // Loading world
         let world = World::new();
         let mut models_instance_list = model::ModelInstanceList::new();
+
         // Add models by name and positions
         for (name, positions) in world.instances_list.clone() {
             models_instance_list
@@ -229,6 +224,7 @@ impl State {
                 .await?;
         }
 
+        // Pre rendered world objects
         let engine_rendered_models_list = model::ModelInstanceList::new();
 
         // Pipeline
@@ -244,7 +240,7 @@ impl State {
         let pipeline_deque =
             pipeline::Pipelines::new(&device, &config, &pipeline_layouts).convert_to_deque();
 
-        let egui_renderer = gui::EguiRenderer::new(
+        let egui_renderer = gui_renderer::EguiRenderer::new(
             &device,       // wgpu Device
             config.format, // TextureFormat
             None,          // this can be None
@@ -279,6 +275,7 @@ impl State {
             input_mapper,
         })
     }
+
     // Supports resizing application
     // Surface is reconfigured everytime the window size changes
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -329,6 +326,7 @@ impl State {
                     .front_mut()
                     .ok_or(wgpu::SurfaceError::OutOfMemory)?
                     .handle_keybind(camera_keybind, is_pressed)?,
+
                 Keybind::Transform(transform_keybind) => {
                     transform_controller.handle_keybind(transform_keybind, is_pressed)?
                 }
@@ -363,11 +361,12 @@ impl State {
             self.window.set_cursor_grab(CursorGrabMode::None)?
         }
 
-        self.bind_obj
-            .camera
-            .controller
-            .front_mut_err()?
-            .update_controller(&self.bind_obj.camera.object);
+        // // TODO: BAD CODE
+        // self.bind_obj
+        //     .camera
+        //     .controller
+        //     .front_mut_err()?
+        //     .update_controller(&self.bind_obj.camera.object);
 
         Ok(())
     }
@@ -397,34 +396,10 @@ impl State {
         // );
 
         // Camera
-        self.bind_obj
-            .camera
-            .controller
-            .front_mut()
-            .ok_or(wgpu::SurfaceError::OutOfMemory)?
-            .update_model(&mut self.bind_obj.camera.object);
-        self.bind_obj
-            .camera
-            .uniform
-            .update_matrix(&self.bind_obj.camera.object);
-
-        self.queue.write_buffer(
-            &self.bind_obj.camera.buffer,
-            0,
-            bytemuck::cast_slice(&[self.bind_obj.camera.uniform]),
-        );
+        self.bind_obj.camera.update(&mut self.queue)?;
 
         // Transform
-        self.bind_obj
-            .transform
-            .uniform
-            .update_matrix(&self.bind_obj.transform.object);
-
-        self.queue.write_buffer(
-            &self.bind_obj.transform.buffer,
-            0,
-            bytemuck::cast_slice(&[self.bind_obj.transform.uniform]),
-        );
+        self.bind_obj.transform.update(&mut self.queue)?;
 
         // World
         self.world.update();
@@ -671,6 +646,7 @@ impl ApplicationHandler<State> for App {
             _ => return,
         };
 
+        #[allow(clippy::single_match)]
         match event {
             winit::event::DeviceEvent::MouseMotion { delta } => {
                 if let Err(e) = state.handle_mouse_position(&delta) {

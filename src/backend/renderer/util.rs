@@ -128,3 +128,17 @@ impl<T> Vector3Wrapper<T> {
         self.0.z
     }
 }
+
+macro_rules! vec_boxed {
+    [ $( $x:expr ), * $(,)? ] => {
+        vec![$( Box::new($x) ),* ]
+    }
+}
+pub(crate) use vec_boxed;
+
+macro_rules! vec_boxed_default {
+    [ $( $x:ty ), * $(,)? ] => {
+        vec_boxed![$( <$x>::default() ),* ]
+    }
+}
+pub(crate) use vec_boxed_default;

@@ -45,6 +45,9 @@ pub enum Keybind {
     App(AppKeybind),
 }
 
+/**
+ * Handles key presses
+ */
 pub trait KeybindHandler<T: KeybindTrait> {
     fn handle_keybind(&mut self, keybind: &T, is_pressed: bool) -> anyhow::Result<()>;
 }
@@ -69,6 +72,7 @@ impl InputMapper {
             (KeyCode::KeyY,         Keybind::App(AppKeybind::SwitchScene)),
             (KeyCode::KeyR,         Keybind::App(AppKeybind::ToggleRotationMode)),
             (KeyCode::KeyX,         Keybind::App(AppKeybind::ToggleCameraMode)),
+
             (KeyCode::KeyW,         Keybind::Camera(CameraKeybind::Forward)),
             (KeyCode::ArrowUp,      Keybind::Camera(CameraKeybind::Forward)),
             (KeyCode::KeyS,         Keybind::Camera(CameraKeybind::Backward)),
@@ -82,7 +86,11 @@ impl InputMapper {
         #[rustfmt::skip]
         let camera_fps_context = HashMap::from([
             (KeyCode::Escape,       Keybind::App(AppKeybind::Exit)),
+            (KeyCode::Space,        Keybind::App(AppKeybind::SwitchRender)),
+            (KeyCode::KeyY,         Keybind::App(AppKeybind::SwitchScene)),
+            (KeyCode::KeyR,         Keybind::App(AppKeybind::ToggleRotationMode)),
             (KeyCode::KeyX,         Keybind::App(AppKeybind::ToggleCameraMode)),
+
             (KeyCode::KeyW,         Keybind::Camera(CameraKeybind::Forward)),
             (KeyCode::ArrowUp,      Keybind::Camera(CameraKeybind::Forward)),
             (KeyCode::KeyS,         Keybind::Camera(CameraKeybind::Backward)),
@@ -104,7 +112,7 @@ impl InputMapper {
         }
     }
 
-    pub fn switch_contexts(&mut self, context: InputContexts) {
+    pub fn switch_contexts_to(&mut self, context: InputContexts) {
         self.context = context;
     }
 

@@ -63,6 +63,7 @@ impl Pipelines {
                 label: Some("Normal Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
             };
+
             Pipelines::create_render_pipeline(
                 device,
                 &pipeline_layouts.render,
@@ -130,6 +131,7 @@ impl Pipelines {
                 })],
                 compilation_options: Default::default(),
             }),
+
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList, // Every three vertices correspond to a triangle
                 strip_index_format: None,
@@ -142,6 +144,7 @@ impl Pipelines {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
+
             // DEPTH BUFFER
             depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                 format,
@@ -150,11 +153,13 @@ impl Pipelines {
                 stencil: wgpu::StencilState::default(), // Stores a mask or pattern that will cut out certain areas of the drawing
                 bias: wgpu::DepthBiasState::default(),
             }),
+
             multisample: wgpu::MultisampleState {
                 count: 1,                         // How many samples the pipeline will used (Too much work)
                 mask: !0, // Mask specifies which samples should be active (All of them)
                 alpha_to_coverage_enabled: false, // Anti aliasing
             },
+
             multiview: None, // How many layers the render attachments will have (For array textures)
             cache: None, // Cache shader compliation data (Only useful for android build targets)
         })

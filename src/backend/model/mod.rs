@@ -1,1 +1,2 @@
-pub mod camera_new;
+pub mod camera;
+pub mod gui;

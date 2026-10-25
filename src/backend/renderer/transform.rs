@@ -46,7 +46,6 @@ impl TransformUniform {
         }
     }
 }
-
 impl ControllerUniform<Transform> for TransformUniform {
     fn update_matrix(&mut self, transform: &Transform) {
         self.matrix = transform.to_matrix().into();
@@ -98,24 +97,24 @@ impl TransformController {
     }
 }
 
-impl Controller<Transform> for TransformController {
-    fn update_model(&self, transform: &mut Transform) {
-        let translation = &mut transform.translation.0;
-        let rotation = &mut transform.rotation.0;
-        let scale = &mut transform.scale.0;
+// impl Controller<Transform> for TransformController {
+//     fn update_model(&self, transform: &mut Transform) {
+//         let translation = &mut transform.translation.0;
+//         let rotation = &mut transform.rotation.0;
+//         let scale = &mut transform.scale.0;
 
-        // Compress down somehow
-        rotation.x.0.0 += self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
-        rotation.y.0.0 += self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
-        rotation.z.0.0 += self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
-        translation.x += self.match_axis(self.translation_truth_table.x, &self.translation_speed);
-        translation.y += self.match_axis(self.translation_truth_table.y, &self.translation_speed);
-        translation.z += self.match_axis(self.translation_truth_table.z, &self.translation_speed);
-        scale.x.0 += self.match_axis(self.scale_truth_table.x, &self.scale_speed);
-        scale.y.0 += self.match_axis(self.scale_truth_table.y, &self.scale_speed);
-        scale.z.0 += self.match_axis(self.scale_truth_table.z, &self.scale_speed);
-    }
-}
+//         // Compress down somehow
+//         rotation.x.0.0 += self.match_axis(self.rotation_truth_table.x, &self.rotation_speed);
+//         rotation.y.0.0 += self.match_axis(self.rotation_truth_table.y, &self.rotation_speed);
+//         rotation.z.0.0 += self.match_axis(self.rotation_truth_table.z, &self.rotation_speed);
+//         translation.x += self.match_axis(self.translation_truth_table.x, &self.translation_speed);
+//         translation.y += self.match_axis(self.translation_truth_table.y, &self.translation_speed);
+//         translation.z += self.match_axis(self.translation_truth_table.z, &self.translation_speed);
+//         scale.x.0 += self.match_axis(self.scale_truth_table.x, &self.scale_speed);
+//         scale.y.0 += self.match_axis(self.scale_truth_table.y, &self.scale_speed);
+//         scale.z.0 += self.match_axis(self.scale_truth_table.z, &self.scale_speed);
+//     }
+// }
 
 impl KeybindHandler<TransformKeybind> for TransformController {
     fn handle_keybind(

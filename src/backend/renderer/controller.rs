@@ -1,9 +1,5 @@
-use crate::backend::renderer::{
-    camera::Camera,
-    keybind::{CameraKeybind, KeybindHandler, KeybindTrait},
-};
-use cgmath::Vector2;
-use egui_winit::winit::dpi::PhysicalPosition;
+use crate::backend::model::camera::camera_model::Camera;
+use crate::keybind::{CameraKeybind, KeybindHandler, KeybindTrait};
 
 // Model itself
 pub trait ControllerModel {
@@ -23,6 +19,7 @@ pub trait ControllerUniform<T: ControllerModel> {
     fn update_matrix(&mut self, model: &T);
 }
 
+//
 pub trait MouseHandler {
     fn update_model_mouse(&mut self, delta: &(f64, f64)) {}
 }
@@ -42,19 +39,24 @@ where
 {
 }
 
+/**
+ * General Camera Controller trait which all cameras should inherit
+ */
 pub trait CameraControllerTrait:
     GeneralControllerTrait<CameraKeybind, Camera> + MouseHandler
 {
 }
 
-impl<W> CameraControllerTrait for W where
-    W: GeneralControllerTrait<CameraKeybind, Camera> + MouseHandler
-{
-}
+// impl<W> CameraControllerTrait for W where
+//     W: GeneralControllerTrait<CameraKeybind, Camera> + MouseHandler
+// {
+// }
 
-// General controller + keybind trait struct
-pub struct CombinedControllerStruct<T: ControllerModel, U: KeybindTrait> {
-    pub model: T,
-    pub uniform: Box<dyn ControllerUniform<T>>,
-    pub controller: Vec<Box<dyn GeneralControllerTrait<U, T>>>,
-}
+// // General controller + keybind trait struct
+// pub struct CombinedControllerStruct<T: ControllerModel, U: KeybindTrait> {
+//     pub model: T,
+//     pub uniform: Box<dyn ControllerUniform<T>>,
+//     pub controller: Vec<Box<dyn GeneralControllerTrait<U, T>>>,
+// }
+
+// ---------------------------------
