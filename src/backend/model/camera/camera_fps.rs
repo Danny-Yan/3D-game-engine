@@ -1,9 +1,12 @@
 use crate::backend::model::camera::camera_model::Camera;
-use crate::backend::renderer::controller::{CameraControllerTrait, Controller, MouseHandler};
+use crate::backend::renderer::controller::{
+    CameraControllerTrait, Controller, MouseHandler, SceneCursorMode,
+};
 use crate::keybind::{CameraKeybind, KeybindHandler};
 use cgmath::Point3;
 use cgmath::Vector3 as Vec3;
 use cgmath::prelude::*;
+use winit::window::CursorGrabMode;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CameraControllerFPS {
@@ -29,6 +32,12 @@ impl Controller<Camera> for CameraControllerFPS {
         self.up = camera.up;
         self.forwards = camera.target - camera.eye;
         self.position = camera.eye;
+    }
+    fn change_scene(&self) -> SceneCursorMode {
+        SceneCursorMode {
+            cursor_mode: CursorGrabMode::Locked,
+            visible: false,
+        }
     }
 }
 

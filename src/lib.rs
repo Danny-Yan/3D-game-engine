@@ -1,4 +1,4 @@
-mod backend;
+pub mod backend;
 #[rustfmt::skip]
 use crate::backend::{
     model::gui::{gui_renderer, gui_version1},
@@ -280,6 +280,8 @@ impl State {
     // Surface is reconfigured everytime the window size changes
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
+            self.window.set_cursor_visible(false);
+            let _ = self.window.set_cursor_grab(CursorGrabMode::Locked);
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
@@ -303,8 +305,7 @@ impl State {
         is_pressed: bool,
     ) -> anyhow::Result<()> {
         let current_keybind = self.input_mapper.handle_key(code);
-        let camera_controller = &mut self.bind_obj.camera.controller;
-        let transform_controller = &mut self.bind_obj.transform.controller;
+        let camera_controller = &mut self.bind_obj.camera.input_controller;
 
         if let Some(keybind) = current_keybind {
             match keybind {
@@ -326,10 +327,6 @@ impl State {
                     .front_mut()
                     .ok_or(wgpu::SurfaceError::OutOfMemory)?
                     .handle_keybind(camera_keybind, is_pressed)?,
-
-                Keybind::Transform(transform_keybind) => {
-                    transform_controller.handle_keybind(transform_keybind, is_pressed)?
-                }
             }
         };
 
@@ -347,19 +344,22 @@ impl State {
 
     fn switch_input_context(&mut self) -> anyhow::Result<()> {
         self.input_mapper.cycle_contexts();
+        self.bind_obj.camera.input_controller.cycle()?;
         self.switch_camera()
     }
 
     fn switch_camera(&mut self) -> anyhow::Result<()> {
-        self.is_fps_camera = !self.is_fps_camera;
-        self.bind_obj.camera.controller.cycle()?;
+        // self.is_fps_camera = !self.is_fps_camera;
 
-        if self.is_fps_camera {
-            self.window.set_cursor_visible(false);
-            self.window.set_cursor_grab(CursorGrabMode::Locked)?;
-        } else {
-            self.window.set_cursor_grab(CursorGrabMode::None)?
-        }
+        let scene_mode = self
+            .bind_obj
+            .camera
+            .input_controller
+            .front_mut_err()?
+            .change_scene();
+
+        self.window.set_cursor_visible(scene_mode.visible);
+        self.window.set_cursor_grab(scene_mode.cursor_mode)?;
 
         // // TODO: BAD CODE
         // self.bind_obj
@@ -375,7 +375,7 @@ impl State {
         // self.mouse_position = *position;
         self.bind_obj
             .camera
-            .controller
+            .input_controller
             .front_mut_err()?
             .update_model_mouse(delta);
         Ok(())

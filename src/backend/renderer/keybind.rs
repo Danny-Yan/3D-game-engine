@@ -13,17 +13,17 @@ pub enum CameraKeybind {
     Down,
 }
 
-pub enum TransformKeybind {
-    RotateX,
-    RotateY,
-    RotateZ,
-    TranslateX,
-    TranslateY,
-    TranslateZ,
-    ScaleX,
-    ScaleY,
-    ScaleZ,
-}
+// pub enum TransformKeybind {
+//     RotateX,
+//     RotateY,
+//     RotateZ,
+//     TranslateX,
+//     TranslateY,
+//     TranslateZ,
+//     ScaleX,
+//     ScaleY,
+//     ScaleZ,
+// }
 
 pub enum AppKeybind {
     ToggleCameraMode,
@@ -33,15 +33,12 @@ pub enum AppKeybind {
     Exit,
 }
 
-// Create procedural macros
 pub trait KeybindTrait {}
 impl KeybindTrait for CameraKeybind {}
-impl KeybindTrait for TransformKeybind {}
 impl KeybindTrait for AppKeybind {}
 
 pub enum Keybind {
     Camera(CameraKeybind),
-    Transform(TransformKeybind),
     App(AppKeybind),
 }
 

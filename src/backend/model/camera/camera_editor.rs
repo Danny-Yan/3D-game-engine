@@ -1,6 +1,9 @@
 use crate::backend::model::camera::camera_model::Camera;
-use crate::backend::renderer::controller::{CameraControllerTrait, Controller, MouseHandler};
+use crate::backend::renderer::controller::{
+    CameraControllerTrait, Controller, MouseHandler, SceneCursorMode,
+};
 use crate::keybind::{CameraKeybind, KeybindHandler};
+use winit::window::CursorGrabMode;
 
 pub struct CameraControllerEditor {
     speed: f32,
@@ -55,6 +58,12 @@ impl Controller<Camera> for CameraControllerEditor {
         }
     }
 
+    fn change_scene(&self) -> SceneCursorMode {
+        SceneCursorMode {
+            cursor_mode: CursorGrabMode::None,
+            visible: false,
+        }
+    }
     // fn update_controller(&mut self, _: &Camera) {}
 }
 

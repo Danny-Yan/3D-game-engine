@@ -1,5 +1,4 @@
 use crate::backend::model::camera::{camera_controller_array, camera_model};
-
 use crate::backend::renderer::controller::{CameraControllerTrait, ControllerUniform};
 use crate::lighting;
 use crate::texture;
@@ -154,7 +153,6 @@ impl BindGroups {
             label: Some("diffuse_bind_group"),
         });
 
-        // Bind group: Describes a set of resources and how they are accessed by the shader
         let depth = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layouts.depth,
             entries: &[
@@ -238,16 +236,16 @@ impl GPUBindGroupObjects {
     }
 }
 
+// CAMERA -----------------------------------
 pub struct CameraBindGroupObject {
     pub object: camera_model::Camera,
     pub uniform: camera_model::CameraUniform,
     pub buffer: wgpu::Buffer,
-    pub controller: VecDeque<Box<dyn CameraControllerTrait>>,
+    pub input_controller: VecDeque<Box<dyn CameraControllerTrait>>,
 }
 
 impl CameraBindGroupObject {
     pub fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
-        // CAMERA -----------------------------------
         let object = camera_model::Camera {
             aspect: config.width as f32 / config.height as f32,
             ..Default::default()
@@ -265,13 +263,13 @@ impl CameraBindGroupObject {
         let controller_vec: Vec<Box<dyn CameraControllerTrait>> =
             camera_controller_array::CameraControllerArray::default().0;
 
-        let controller = VecDeque::from(controller_vec);
+        let input_controller = VecDeque::from(controller_vec);
 
         Self {
             object,
             uniform,
             buffer,
-            controller,
+            input_controller,
         }
     }
 
@@ -279,7 +277,7 @@ impl CameraBindGroupObject {
      * Update camera model and add it to buffer queue
      */
     pub fn update(&mut self, queue: &mut wgpu::Queue) -> anyhow::Result<()> {
-        self.controller
+        self.input_controller
             .front_mut()
             .ok_or(wgpu::SurfaceError::OutOfMemory)?
             .update_model(&mut self.object);
@@ -292,16 +290,15 @@ impl CameraBindGroupObject {
     }
 }
 
+// TRANSFORM -----------------------------------
 pub struct TransformBindGroupObject {
     pub object: transform::Transform,
     pub uniform: transform::TransformUniform,
     pub buffer: wgpu::Buffer,
-    pub controller: transform::TransformController,
 }
 
 impl TransformBindGroupObject {
     pub fn new(device: &wgpu::Device) -> Self {
-        // TRANSFORM -----------------------------------
         let object = transform::Transform::default();
 
         let mut uniform = transform::TransformUniform::new();
@@ -313,13 +310,10 @@ impl TransformBindGroupObject {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let controller = transform::TransformController::new();
-
         Self {
             object,
             uniform,
             buffer,
-            controller,
         }
     }
 
@@ -327,12 +321,6 @@ impl TransformBindGroupObject {
      * Update model and write to buffer
      */
     pub fn update(&mut self, queue: &mut wgpu::Queue) -> anyhow::Result<()> {
-        // Used for transformation keybindings to pass to Object
-        // self.bind_obj
-        //     .transform
-        //     .controller
-        //     .update_model(&mut self.bind_obj.transform.object);
-
         self.uniform.update_matrix(&self.object);
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));

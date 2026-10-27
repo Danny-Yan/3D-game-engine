@@ -1,5 +1,13 @@
+use winit::window::CursorGrabMode;
+
+use crate::State;
 use crate::backend::model::camera::camera_model::Camera;
 use crate::keybind::{CameraKeybind, KeybindHandler, KeybindTrait};
+
+pub struct SceneCursorMode {
+    pub cursor_mode: CursorGrabMode,
+    pub visible: bool,
+}
 
 // Model itself
 pub trait ControllerModel {
@@ -10,6 +18,7 @@ pub trait ControllerModel {
 pub trait Controller<T: ControllerModel> {
     fn update_model(&self, model: &mut T);
 
+    fn change_scene(&self) -> SceneCursorMode;
     // optional
     fn update_controller(&mut self, model: &T) {}
 }
